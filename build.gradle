@@ -1,0 +1,151 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+apply plugin: 'eclipse'
+apply plugin: "org.xtext.xtend"
+
+buildscript {
+  repositories {
+    maven { url "https://github.com/ben-manes/gradle-versions-plugin/raw/mvnrepo" }
+    mavenCentral()
+  }
+
+  dependencies {
+    classpath 'com.github.ben-manes:gradle-versions-plugin:0.5-beta-1'
+  }
+}
+
+buildscript {
+  repositories {
+    maven {
+      url "https://plugins.gradle.org/m2/"
+    }
+  }
+  dependencies {
+    classpath "org.xtext:xtext-gradle-plugin:1.0.5"
+  }
+}
+
+xtend {
+  generator{
+    javaSourceLevel = 1.8
+  }
+}
+
+
+uploadArchives {
+  repositories.mavenDeployer {
+    repository(url: "file:///${System.properties['user.home']}/artifacts/")
+    pom.version = "1.0.0"
+    pom.artifactId = "phylosmcsampler"
+    pom.groupId = "ca.ubc.stat"
+  }
+}
+
+eclipse { 
+  classpath {
+    defaultOutputDir = file('bin')
+  }
+}
+
+repositories {
+  mavenCentral()
+  jcenter()
+  maven {
+    url "https://ubc-stat-ml.github.io/artifacts/"
+  }
+  maven {
+    url "https://www.stat.ubc.ca/~bouchard/maven/"
+  }
+}
+
+dependencies {
+  compile group: 'com.google.guava', name: 'guava', version: '19.0'
+  testCompile group: 'junit', name: 'junit', version: '4.12'
+  compile group: 'junit', name: 'junit', version: '4.12'
+  compile group: 'ca.ubc.stat', name: 'binc', version: '1.2.1'
+  compile group: 'ca.ubc.stat', name: 'briefj', version: '2.4.15'
+  compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.4'
+  compile 'com.google.code.gson:gson:2.7'
+  compile 'org.eclipse.xtend:org.eclipse.xtend.lib:2.9.2'
+  compile group: 'ca.ubc.stat', name: ‘legacy’, version: ‘1.0.0’  
+}
+
+task(tutorialj, dependsOn: ['build','testClasses'], type: JavaExec) {
+  main = 'tutorialj.Main'
+  classpath {
+    configurations.compile
+    sourceSets.main.runtimeClasspath
+    sourceSets.test.runtimeClasspath
+  }
+}
+
+apply plugin: 'versions'
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from 'build/docs/javadoc'
+}
+
+artifacts {
+    archives jar
+    archives sourcesJar
+    archives javadocJar
+}
+
+
+
+
+if (JavaVersion.current().isJava8Compatible()) {
+    allprojects {
+        //noinspection SpellCheckingInspection
+        tasks.withType(Javadoc) {
+            // disable the crazy super-strict doclint tool in Java 8
+            //noinspection SpellCheckingInspection
+            options.addStringOption('Xdoclint:none', '-quiet')
+        }
+    }
+}
+
+
+// http://www.gradle.org/docs/current/userguide/application_plugin.html
+// use 'gradle startScripts' to create script
+// use 'gradle distZip' to create deployable zip
+// use 'gradle installApp' to copy it somewhere
+apply plugin:'application'  
+
+// Creates scripts for entry points
+// Subproject must apply application plugin to be able to call this method.
+def createScript(project, mainClass, name) {
+  project.tasks.create(name: name, type: CreateStartScripts) {
+    outputDir       = new File(project.buildDir, 'scripts')
+    mainClassName   = mainClass
+    applicationName = name
+    classpath       = project.tasks[JavaPlugin.JAR_TASK_NAME].outputs.files + project.configurations.runtime
+  }
+  project.tasks[name].dependsOn(project.jar)
+
+  project.applicationDistribution.with {
+    into("bin") {
+      from(project.tasks[name])
+      fileMode = 0755
+    }
+  }
+}
+
+// The next two lines disable the tasks for the primary main which by default
+// generates a script with a name matching the project name. 
+// You can leave them enabled but if so you'll need to define mainClassName
+// And you'll be creating your application scripts two different ways which 
+// could lead to confusion
+startScripts.enabled = false
+run.enabled = false
+
+// Call this for each Main class you want to expose with an app script
+createScript(project, 'phylosmcsampler.Main', 'main')
+//createScript(project, 'phylosmcsampler.AnotherMain', 'another-main')
+

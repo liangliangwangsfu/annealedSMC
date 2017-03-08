@@ -37,7 +37,7 @@ uploadArchives {
     repository(url: "file:///${System.properties['user.home']}/artifacts/")
     pom.version = "1.0.5"
     pom.artifactId = "phylosmcsampler"
-    pom.groupId = "ca.ubc.stat"
+    pom.groupId = "ca.sfu.stat"
   }
 }
 
@@ -67,7 +67,7 @@ dependencies {
   compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.4'
   compile 'com.google.code.gson:gson:2.7'
   compile 'org.eclipse.xtend:org.eclipse.xtend.lib:2.9.2'
-  compile group: 'ca.ubc.stat', name: 'legacy', version: '1.0.0'  
+  compile group: 'ca.ubc.stat', name: 'legacy', version: '1.0.0'    
 }
 
 task(tutorialj, dependsOn: ['build','testClasses'], type: JavaExec) {

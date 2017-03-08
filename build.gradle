@@ -35,7 +35,7 @@ xtend {
 uploadArchives {
   repositories.mavenDeployer {
     repository(url: "file:///${System.properties['user.home']}/artifacts/")
-    pom.version = "1.0.5"
+    pom.version = "1.0.6"
     pom.artifactId = "phylosmcsampler"
     pom.groupId = "ca.sfu.stat"
   }

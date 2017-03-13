@@ -1,4 +1,4 @@
-package pty.smc;
+package smcsampler;
 
 
 import java.io.PrintWriter;
@@ -26,6 +26,8 @@ import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.solvers.PegasusSolver;
 
 import pty.mcmc.UnrootedTreeState;
+import pty.smc.PartialCoalescentState;
+import pty.smc.ParticleKernel;
 import fig.basic.LogInfo;
 import fig.basic.NumUtils;
 import fig.basic.Option;

@@ -1,14 +1,14 @@
-package pty.smc;
+package smcsampler;
 import java.util.LinkedList;
 import java.util.Random;
 
 import nuts.math.Sampling;
 import pty.RootedTree;
 import pty.UnrootedTree;
-import pty.mcmc.NonClockTreeState;
 import pty.mcmc.PhyloSampler;
 import pty.mcmc.ProposalDistribution;
 import pty.mcmc.UnrootedTreeState;
+import pty.smc.ParticleKernel;
 import ev.ex.TreeGenerators;
 import fig.basic.LogInfo;
 import fig.basic.Option;
@@ -191,7 +191,7 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 		return this.currentIter;
 	}
 
-	private void sample(Random rand, NonClockTreeState currentState) {
+	private void sample(Random rand, UnrootedTreeState currentState) {
 	}
 
 	private ProposalDistribution nextProposal(Random rand) {

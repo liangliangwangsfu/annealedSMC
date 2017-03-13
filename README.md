@@ -23,24 +23,24 @@ repositories {
  mavenCentral()
  jcenter()
  maven {
-    url "http://www.stat.ubc.ca/~bouchard/maven/"
+    url "http://people.stat.sfu.ca/~lwa68/maven/"
   }
 }
 
 dependencies {
-  compile group: 'ca.ubc.stat', name: 'phylosmcsampler', version: '1.0.0'
+  compile group: 'ca.sfu.stat', name: 'phylosmcsampler', version: '1.0.0'
 }
 ```
 
 ### Compile using the provided gradle script
 
-- Check out the source ``git clone git@github.com:alexandrebouchard/phylosmcsampler.git``
+- Check out the source ``git clone git@github.com:liangliangwangsfu/phylosmcsampler.git``
 - Compile using ``./gradlew installDist``
 - Add the jars in ``build/install/phylosmcsampler/lib/`` into your classpath
 
 ### Use in eclipse
 
-- Check out the source ``git clone git@github.com:alexandrebouchard/phylosmcsampler.git``
+- Check out the source ``git clone git@github.com:liangliangwangsfu/phylosmcsampler.git``
 - Type ``gradle eclipse`` from the root of the repository
 - From eclipse:
   - ``Import`` in ``File`` menu

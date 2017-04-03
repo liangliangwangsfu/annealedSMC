@@ -71,7 +71,9 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 	{
 		this.initial = initial;		 
 		this.proposalDistributions=proposalDistributions;
-		this.proposalOptions=proposalOptions; 
+		this.proposalOptions=proposalOptions;
+		
+		
 	}
 	public UnrootedTreeState getInitial() { return initial; }
 

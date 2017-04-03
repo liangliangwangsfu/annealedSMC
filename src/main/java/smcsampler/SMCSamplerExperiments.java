@@ -10,14 +10,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import ma.MSAParser;
-import ma.MSAPoset;
 import ma.SequenceType;
 import nuts.io.CSV;
 import nuts.io.IO;
-import nuts.math.Sampling;
 import nuts.math.StatisticsMap.DescriptiveStatisticsMap;
 import nuts.util.Counter;
-import pty.RandomRootedTrees;
 import pty.RootedTree;
 import pty.UnrootedTree;
 import pty.io.Dataset;
@@ -27,21 +24,11 @@ import pty.io.TreeEvaluator.TreeMetric;
 import pty.mcmc.PhyloSampler;
 import pty.mcmc.ProposalDistribution;
 import pty.mcmc.UnrootedTreeState;
-import pty.pmcmc.PMMHNC;
 import pty.pmcmc.PhyloPFSchedule;
-import pty.smc.LazyParticleFilter;
-import pty.smc.LazyParticleFilter.LazyParticleKernel;
-import pty.smc.LazyParticleFilter.ParticleFilterOptions;
 import pty.smc.NCPriorPriorKernel;
 import pty.smc.PartialCoalescentState;
-import pty.smc.ParticleFilter;
-import pty.smc.ParticleFilter.ParticleProcessor;
-import pty.smc.ParticleFilter.ResamplingStrategy;
-import pty.smc.ParticleFilter.StoreProcessor;
-import pty.smc.ParticleKernel;
 import pty.smc.PriorPriorKernel;
 import pty.smc.models.CTMC;
-import pty.smc.test.TestBrownianModel.KernelType;
 import conifer.trees.StandardNonClockPriorDensity;
 import ev.ex.PhyloSamplerMain;
 import ev.ex.TreeGenerators;
@@ -50,7 +37,6 @@ import fig.basic.IOUtils;
 import fig.basic.LogInfo;
 import fig.basic.Option;
 import fig.exec.Execution;
-import fig.prob.Dirichlet;
 import fig.prob.Gamma;
 import goblin.Taxon;
 
@@ -59,7 +45,7 @@ public class SMCSamplerExperiments implements Runnable
 	@Option public boolean resampleRoot = false;
 	@Option public InferenceMethod refMethod = InferenceMethod.MB;
 	@Option public double nThousandIters = 10;
-	@Option public ArrayList<InferenceMethod> methods = list(Arrays.asList(InferenceMethod.MB, InferenceMethod.ANNEALING));
+	@Option public ArrayList<InferenceMethod> methods = list(Arrays.asList(InferenceMethod.ANNEALING,InferenceMethod.MB));
 	@Option public ArrayList<Double> iterScalings = list(Arrays.asList(1.0));
 	@Option public int refIterScaling = 100;
 	@Option public int repPerDataPt = 1;    
@@ -156,6 +142,10 @@ public class SMCSamplerExperiments implements Runnable
 		else
 			files = IO.ls(new File(Execution.getFile(dataDirName)), "msf");
 		//    ReportProgress.progressBlock(files.size());
+		
+		boolean adaptiveTempDiff0=adaptiveTempDiff;
+		int nMrBayesIter=0;
+		
 		for (File f : files)
 		{
 			this.data = f;
@@ -169,103 +159,123 @@ public class SMCSamplerExperiments implements Runnable
 
 							File computedRefTrees = new File(Execution.getFile("computed-ref-trees"));
 							//      ReportProgress.progressBlock(methods.size());
+							for (int j = 0; j < repPerDataPt; j++)
+							{
+								for (int i = 0; i < methods.size(); i++) {
+									InferenceMethod m = methods.get(i);
 
-							InferenceMethod m = InferenceMethod.ANNEALING;
-							int nRun = 1;
-							if (adaptiveTempDiff)
-								nRun = 2;
-							// nRun = 4;
-							int nIter = Integer.MIN_VALUE;
-							for (int i = 0; i < nRun; i++) {
-								// if (i == 1)
-								// adaptiveType = 1;
-								// if (i == 2)
-								// adaptiveType = 2;
+									int nRun = 1;
+									if (m==InferenceMethod.ANNEALING && adaptiveTempDiff)
+										nRun = 2;
+									int nIter = Integer.MIN_VALUE;
+									for (int l = 0; l < nRun; l++) {
+										double iterScale = iterScalings.get(i);
+										if(m == InferenceMethod.MB && nMrBayesIter>0) iterScale=nMrBayesIter;
+										LogInfo.track("Current method:" + m + " with iterScale=" + iterScale + " (i.e. " + (iterScale * nThousandIters * 1000.0) + " iterations)");
 
-								final double iterScale = iterScalings.get(0);
-								LogInfo.track("Current method:" + m + " with iterScale=" + iterScale + " (i.e. " + (iterScale * nThousandIters * 1000.0) + " iterations)");
+										DescriptiveStatisticsMap<String> stats = new DescriptiveStatisticsMap<String>();
+										//        ReportProgress.progressBlock(repPerDataPt);
+										String treeNameCurrentRep= treeName;
 
-								DescriptiveStatisticsMap<String> stats = new DescriptiveStatisticsMap<String>();
-								//        ReportProgress.progressBlock(repPerDataPt);
-								for (int j = 0; j < repPerDataPt; j++)
-								{
-									String treeNameCurrentRep= treeName;
-								//	if (m == InferenceMethod.PMMHNC)
-								//		treeNameCurrentRep = treeNameCurrentRep + ".Rep"
-								//				+ j;
+										if (m == InferenceMethod.ANNEALING)
+											treeNameCurrentRep = treeNameCurrentRep + "adaptive"
+													+ adaptiveTempDiff + ".Rep" + j;
+										else
+											treeNameCurrentRep = treeNameCurrentRep + ".Rep"+ j;
+										LogInfo.track("Repeat " + (j+1) + "/" + repPerDataPt);
+										//          LogInfo.forceSilent = true;
+										long  time=System.currentTimeMillis();
+										TreeDistancesProcessor processor = m.doIt(this, iterScale, goldut, treeNameCurrentRep);									
+										time=System.currentTimeMillis()-time;
+										LogInfo.forceSilent = false;
+										UnrootedTree inferred = processor.getConsensus();										
+										IO.writeToDisk(new File(output, "consensus_"+treeName.replaceAll("[.]msf$",".newick")), inferred.toNewick());
+										{
+											// evaluate the likelihood of the inferred tree
+											Dataset dataset = DatasetUtils.fromAlignment(this.data, sequenceType);
+											CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites());
+											UnrootedTreeState ncs = UnrootedTreeState.initFastState(inferred, dataset, ctmc);
+											if (m == InferenceMethod.ANNEALING)
+											out.println(CSV.body(m, adaptiveTempDiff, adaptiveType,
+													this.nAnnealing, iterScale, j,
+													"ConsensusLogLL", ncs.logLikelihood(),
+													treeName, time));
+											else
+												out.println(CSV.body(m, "", "","", iterScale, j,
+														"ConsensusLogLL", ncs.logLikelihood(),
+														treeName, time));											
+										}
+										{
+											// best log likelihood, when available
+											double bestLogLL = processor.getBestLogLikelihood();
+											if (m == InferenceMethod.ANNEALING)
+											out.println(CSV.body(m, adaptiveTempDiff, adaptiveType,
+													this.nAnnealing, iterScale, j,
+													"BestSampledLogLL", bestLogLL, treeName, time));
+											else
+												out.println(CSV.body(m, "", "","", iterScale, j,
+														"BestSampledLogLL", bestLogLL, treeName, time));
+										}
+										if (goldut == null)
+										{
+											LogInfo.logsForce("Computing gold tree using " + refMethod);
+											goldut = refMethod.doIt(this, refIterScaling, goldut, treeName).getConsensus();
+											computedRefTrees.mkdir();
+											File current = new File(computedRefTrees, "computedRefTree_"  +f.getName().replaceAll("[.]msf","") + ".newick");
+											IO.writeToDisk(current, goldut.toNewick());
+										}
+										for (TreeMetric tm : TreeEvaluator.coreTreeMetrics)
+										{
+											final double value = tm.score(inferred, goldut);
+											stats.addValue(tm.toString(), value);
+											if (m == InferenceMethod.ANNEALING)
+												out.println(CSV.body(m, adaptiveTempDiff, adaptiveType,
+														this.nAnnealing, iterScale, j, tm, value,
+														treeName, time));
+											else
+												out.println(CSV.body(m, "", "", "", iterScale, j, tm, value,
+														treeName, time));
+										}
 
-									if (m == InferenceMethod.ANNEALING)
-										treeNameCurrentRep = treeNameCurrentRep + "adaptive"
-												+ adaptiveTempDiff + ".Rep" + j;
-									LogInfo.track("Repeat " + (j+1) + "/" + repPerDataPt);
-									//          LogInfo.forceSilent = true;
-									long  time=System.currentTimeMillis();
-									TreeDistancesProcessor processor = m.doIt(this, iterScale, goldut, treeNameCurrentRep);									
-									time=System.currentTimeMillis()-time;
-									LogInfo.forceSilent = false;
-									UnrootedTree inferred = processor.getConsensus();										
-									IO.writeToDisk(new File(output, "consensus_"+treeName.replaceAll("[.]msf$",".newick")), inferred.toNewick());
-									{
-										// evaluate the likelihood of the inferred tree
-										Dataset dataset = DatasetUtils.fromAlignment(this.data, sequenceType);
-										CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites());
-										UnrootedTreeState ncs = UnrootedTreeState.initFastState(inferred, dataset, ctmc);
-										out.println(CSV.body(m, adaptiveTempDiff, adaptiveType,
-												this.nAnnealing, iterScale, j,
-												"ConsensusLogLL", ncs.logLikelihood(),
-												treeName, time));
-									}
-									{
-										// best log likelihood, when available
-										double bestLogLL = processor.getBestLogLikelihood();
-										out.println(CSV.body(m, adaptiveTempDiff, adaptiveType,
-												this.nAnnealing, iterScale, j,
-												"BestSampledLogLL", bestLogLL, treeName, time));
-									}
-									if (goldut == null)
-									{
-										LogInfo.logsForce("Computing gold tree using " + refMethod);
-										goldut = refMethod.doIt(this, refIterScaling, goldut, treeName).getConsensus();
-										computedRefTrees.mkdir();
-										File current = new File(computedRefTrees, "computedRefTree_"  +f.getName().replaceAll("[.]msf","") + ".newick");
-										IO.writeToDisk(current, goldut.toNewick());
-									}
-									for (TreeMetric tm : TreeEvaluator.coreTreeMetrics)
-									{
-										final double value = tm.score(inferred, goldut);
-										stats.addValue(tm.toString(), value);
-										out.println(CSV.body(m, adaptiveTempDiff, adaptiveType,
-												this.nAnnealing, iterScale, j, tm, value,
-												treeName, time));
-									}
+										LogInfo.end_track();
+										//          ReportProgress.divisionCompleted();
 
-									LogInfo.end_track();
-									//          ReportProgress.divisionCompleted();
+										LogInfo.track("Score for current block of repeats (Method="+m + ",IterScale=" + iterScale + ",TreeName=" + treeName + ")");
+										for (TreeMetric tm : TreeEvaluator.coreTreeMetrics)
+											LogInfo.logsForce("Current " + tm + ":" + stats.median(tm.toString()));
+										LogInfo.end_track();
+										out.flush();
+										LogInfo.end_track();
+										//        ReportProgress.divisionCompleted();
+
+										if ((l < nRun - 1) && (this.nAnnealing > nIter))
+										{
+											nIter = this.nAnnealing;			
+											nMrBayesIter=(int) (nIter*iterScalings.get(i));
+										}
+
+										if (l == nRun - 2) {
+											AnnealingKernel.nAnnealing = nIter;											
+											adaptiveTempDiff = false;
+											adaptiveType = 0;
+										}
+
+									}									
+									adaptiveTempDiff = adaptiveTempDiff0;
 								}
-								LogInfo.track("Score for current block of repeats (Method="+m + ",IterScale=" + iterScale + ",TreeName=" + treeName + ")");
-								for (TreeMetric tm : TreeEvaluator.coreTreeMetrics)
-									LogInfo.logsForce("Current " + tm + ":" + stats.median(tm.toString()));
-								LogInfo.end_track();
-								out.flush();
-								LogInfo.end_track();
-								//        ReportProgress.divisionCompleted();
-
-								if ((i < nRun - 1) && (this.nAnnealing > nIter))
-									nIter = this.nAnnealing;
-
-								if (i == nRun - 2) {
-									AnnealingKernel.nAnnealing = nIter;
-									adaptiveTempDiff = false;
-									adaptiveType = 0;
-								}
-
+								
+								
 							}
 							LogInfo.end_track();
 
 							//      ReportProgress.divisionCompleted();
 
-
 		}
+		//		String mrBayesFolder=Execution.getFile("temp-mrbayes");		
+		//	LogInfo.logs("grep Mean: "+mrBayesFolder+"/time=*/mrbayes-stdout |awk {'print $3'}");
+		//	String str =IO.call("bash -s", "grep Mean: "+mrBayesFolder+"/time=*/mrbayes-stdout |awk {'print $3'}");        
+		//	logZout.append(str);
+		//LogInfo.logs(str);
 
 		out.close();
 		logZout.close();
@@ -305,7 +315,14 @@ public class SMCSamplerExperiments implements Runnable
 				mb.computeSamples(MSAParser.parseMSA(instance.data), instance.sequenceType);
 				TreeDistancesProcessor tdp = new TreeDistancesProcessor();
 				mb.processMrBayesTrees(tdp,1);
+				mb.seed = mainRand.nextInt();
+				mb.nMCMCIters = (int) (iterScale * instance.nThousandIters * 1000);
+				String marginalLike= mb.computeMarginalLike(MSAParser.parseMSA(instance.data), instance.sequenceType);
 				//				mb.cleanUpMrBayesOutput();
+				instance.logZout.println(CSV.body(treeName,
+						marginalLike, ""));
+				instance.logZout.flush();
+
 				return tdp;
 			}
 		},

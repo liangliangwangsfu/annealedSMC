@@ -45,7 +45,8 @@ public class MrBayes implements Runnable
 	@Option public double[] subsRates=new double[]{0.26, 0.18, 0.17, 0.15, 0.11, 0.13};
 	@Option public double  mb_trans2tranv=2.0; 
 	@Option public boolean setstarttree=false;  
-	@Option public boolean setSSinMB=false;
+	//@Option public boolean setSSinMB=false;
+	@Option public boolean fixtratioInMb=false;
 
 	// the next two can also be provided directly as arguments in computeSamples
 	@Option public SequenceType st = SequenceType.RNA;
@@ -67,6 +68,23 @@ public class MrBayes implements Runnable
 		writeToDisk(new File(workingDir, "mrbayes-stdout"), msg);
 		return workingDir;
 	}
+
+	public String computeMarginalLike(MSAPoset alignment, SequenceType st)
+	{
+		workingDir = IO.getTempDir("temp-mrbayes-ss");
+		File nexusFile = new File(workingDir, NEX_FILE);
+		File mrBayesCmd = new File(workingDir, "mrbayes.cmd");
+		NexusWriter.writeNexus(alignment, nexusFile, st);
+		writeMrBayesCmd_(mrBayesCmd,true);    
+		String msg = IO.call("" + mrBayesPath + " " + mrBayesCmd.getName(), null, workingDir);
+//		System.out.println(msg);
+		writeToDisk(new File(workingDir, "mrbayes-stdout"), msg);
+//		LogInfo.logs("grep Mean: "+mrBayesFolder+"/time=*/mrbayes-stdout |awk {'print $3'}");		        
+		return IO.call("grep Mean: "+workingDir+"/mrbayes-stdout", null, workingDir);
+//		return workingDir;
+	}
+
+	
 	public void processMrBayesTrees(RootedTreeProcessor rtp)
 	{
 		processMrBayesTrees(rtp, 1);
@@ -140,7 +158,14 @@ public class MrBayes implements Runnable
 		newickStr = newickStr + ";";		
 		return RootedTree.Util.fromNewickString(newickStr);
 	}
+	
+	
 	private void writeMrBayesCmd(File mrBayesCmd)
+	{
+		writeMrBayesCmd_(mrBayesCmd, false);
+	}
+	
+	private void writeMrBayesCmd_(File mrBayesCmd, boolean setSSinMB)
 	{
 		RateMatrixLoader.DEFAULT_TRANS2TRANV=mb_trans2tranv;    
 		final double b4 = RateMatrixLoader.beta(RateMatrixLoader.DEFAULT_TRANS2TRANV) * 4.0;
@@ -177,6 +202,7 @@ public class MrBayes implements Runnable
 						(set2nst?"lset nst=2;\n"+"prset tratiopr = beta(1, 1);\n":"lset nst=6;\n")+
 						(fixNucleotideFreq?"prset statefreqpr=fixed(0.25,0.25,0.25,0.25);\n":"")+        
 						(setToK2P ? "prset revmatpr=fixed(" + b4 +"," + a4 + "," + b4 + "," + b4 +"," + a4 + "," + b4 + ");\n":"")+
+						(fixtratioInMb? "prset tratiopr = fixed("+mb_trans2tranv+");\n":"")+
 						(fixGTRGammaPara?fixGtrGammaStr:"")+
 						(setstarttree?("startvals  tau = starttree;\n"+
 								"startvals  V = starttree;\n"):"")+

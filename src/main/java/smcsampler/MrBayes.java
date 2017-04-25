@@ -79,8 +79,9 @@ public class MrBayes implements Runnable
 		String msg = IO.call("" + mrBayesPath + " " + mrBayesCmd.getName(), null, workingDir);
 //		System.out.println(msg);
 		writeToDisk(new File(workingDir, "mrbayes-stdout"), msg);
-//		LogInfo.logs("grep Mean: "+mrBayesFolder+"/time=*/mrbayes-stdout |awk {'print $3'}");		        
-		return IO.call("grep Mean: "+workingDir+"/mrbayes-stdout", null, workingDir);
+//		LogInfo.logs("grep Mean: "+mrBayesFolder+"/time=*/mrbayes-stdout |awk {'print $3'}");
+		String marginalLikeMean = IO.call("grep Mean: "+workingDir+"/mrbayes-stdout", null, workingDir);					
+		return marginalLikeMean.substring(marginalLikeMean.indexOf(": ")+1, marginalLikeMean.indexOf(".")+3);
 //		return workingDir;
 	}
 

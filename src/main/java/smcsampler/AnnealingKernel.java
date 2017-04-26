@@ -108,10 +108,10 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 
 				double currentPrior = current.getLogPrior(), proposePrior = proposedState
 						.getLogPrior();
-				double logLikRatio = newtemperature
-						* (proposePrior + proposedState.getLogLikelihood())
-						- newtemperature
-						* (currentPrior + current.getLogLikelihood());
+				double logLikRatio = proposePrior+newtemperature
+						* proposedState.getLogLikelihood()
+				- (newtemperature + currentPrior 
+						* current.getLogLikelihood());
 				final double ratio = Math.min(1,
 						Math.exp(logProposalRatio + logLikRatio));
 

@@ -76,13 +76,11 @@ public class MrBayes implements Runnable
 		File mrBayesCmd = new File(workingDir, "mrbayes.cmd");
 		NexusWriter.writeNexus(alignment, nexusFile, st);
 		writeMrBayesCmd_(mrBayesCmd,true);    
-		String msg = IO.call("" + mrBayesPath + " " + mrBayesCmd.getName(), null, workingDir);
-//		System.out.println(msg);
+		String msg = IO.call("" + mrBayesPath + " " + mrBayesCmd.getName(), null, workingDir);		
 		writeToDisk(new File(workingDir, "mrbayes-stdout"), msg);
 //		LogInfo.logs("grep Mean: "+mrBayesFolder+"/time=*/mrbayes-stdout |awk {'print $3'}");
 		String marginalLikeMean = IO.call("grep Mean: "+workingDir+"/mrbayes-stdout", null, workingDir);					
 		return marginalLikeMean.substring(marginalLikeMean.indexOf(": ")+1, marginalLikeMean.indexOf(".")+3);
-//		return workingDir;
 	}
 
 	

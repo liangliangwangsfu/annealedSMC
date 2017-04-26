@@ -50,7 +50,7 @@ public final class ParticleFilterSMCSampler<S>
 	@Option
 	public int nThreads = 1;
 	@Option
-	public ResamplingStrategy resamplingStrategy = ResamplingStrategy.ALWAYS;
+	public ResamplingStrategy resamplingStrategy = ResamplingStrategy.ESS;
 	// @Option
 	// public ResamplingStrategy resamplingStrategy = ResamplingStrategy.ESS;
 	public static double essRatioThreshold = 0.5;
@@ -60,7 +60,7 @@ public final class ParticleFilterSMCSampler<S>
 
 	private ProcessSchedule schedule = null;
 	private double ess = N;
-	private double tempDiff, oldTempDiff;
+	private double tempDiff;
 
 	@Option
 	public boolean adaptiveTempDiff = false;
@@ -85,7 +85,7 @@ public final class ParticleFilterSMCSampler<S>
 
 	public void setConditional(List<S> conditional,
 			double[] conditionalUnnormWeights)
- {
+	{
 		// no I think it's ok
 		// if (true)
 		// throw new
@@ -168,7 +168,7 @@ public final class ParticleFilterSMCSampler<S>
 
 	private void propagateAndComputeWeights(final ParticleKernel<S> kernel,
 			final int t)
- {
+	{
 		// //// remove me!
 		// max = Double.NEGATIVE_INFINITY;
 
@@ -186,44 +186,44 @@ public final class ParticleFilterSMCSampler<S>
 		parallelizer.setPrimaryThread();
 		parallelizer.process(CollUtils.ints(N),
 				new Parallelizer.Processor<Integer>() {
-					public void process(Integer x, int _i, int _n, boolean log) {
-						if (log && ((x + 1) % 5 == 0))
-							if (verbose)
-								LogInfo.logs("Particle " + (x + 1) + "/" + N);
-						Random rand = new Random(seeds[x]);
-						if (x == 0 && isConditional()) {
-							samples.set(x, conditional.get(t));
-							logWeights[x] = conditionalUnnormWeights[t];
-						} else {
-							final Pair<S, Double> current = kernel.next(rand,
-									samples.get(x));
-							if (current == null) {
-								samples.set(x, null);
-								logWeights[x] = Double.NEGATIVE_INFINITY;
-							} else {
-								// System.out.println(x+": "+logWeights[x]+" "+current.getSecond());
-								samples.set(x, current.getFirst());
-								incrementalLogWeights[x] = current.getSecond();
-								logWeights[x] += current.getSecond();
-								// System.out.println(logWeights[x]);
-								logWeights2[x] = Math
-										.log(normalizedWeights0[x])
-										+ current.getSecond();
+			public void process(Integer x, int _i, int _n, boolean log) {
+				if (log && ((x + 1) % 5 == 0))
+					if (verbose)
+						LogInfo.logs("Particle " + (x + 1) + "/" + N);
+				Random rand = new Random(seeds[x]);
+				if (x == 0 && isConditional()) {
+					samples.set(x, conditional.get(t));
+					logWeights[x] = conditionalUnnormWeights[t];
+				} else {
+					final Pair<S, Double> current = kernel.next(rand,
+							samples.get(x));
+					if (current == null) {
+						samples.set(x, null);
+						logWeights[x] = Double.NEGATIVE_INFINITY;
+					} else {
+						// System.out.println(x+": "+logWeights[x]+" "+current.getSecond());
+						samples.set(x, current.getFirst());
+						incrementalLogWeights[x] = current.getSecond();
+						logWeights[x] += incrementalLogWeights[x];
+						// System.out.println(logWeights[x]);
+						logWeights2[x] = Math
+								.log(normalizedWeights0[x])
+								+ incrementalLogWeights[x];
 
-								// /// remove me
-								// if (current.getSecond() > max)
-								// {
-								// max = current.getSecond();
-								// System.out.println("New max" + max +
-								// "\nValue:\n"+((LazyPCS)current.getFirst()).peekState());
-								// }
-								//
-								// ///
+						// /// remove me
+						// if (current.getSecond() > max)
+						// {
+						// max = current.getSecond();
+						// System.out.println("New max" + max +
+						// "\nValue:\n"+((LazyPCS)current.getFirst()).peekState());
+						// }
+						//
+						// ///
 
 					}
-						}
-					}
-				});
+				}
+			}
+		});
 		// lognorm += SloppyMath.logAdd(logWeights) - Math.log(N);
 
 		double logZRatio=SloppyMath.logAdd(logWeights2);
@@ -254,7 +254,7 @@ public final class ParticleFilterSMCSampler<S>
 	}
 
 	private void init(final ParticleKernel<S> kernel)
- {
+	{
 		// ancestors = new ArrayList<Integer>(N);
 		// for (int n = 0; n < N; n++)
 		// ancestors.add(n);
@@ -296,7 +296,7 @@ public final class ParticleFilterSMCSampler<S>
 		final double[] logLikePrior = new double[samples.size()];
 		for (int n = 0; n < samples.size(); n++) {
 			UnrootedTreeState urt = ((UnrootedTreeState) samples.get(n));
-			logLikePrior[n] = urt.getLogLikelihood() + urt.getLogPrior();
+			logLikePrior[n] = urt.getLogLikelihood(); // + urt.getLogPrior();
 		}
 
 		int maxEval = 100;
@@ -348,7 +348,7 @@ public final class ParticleFilterSMCSampler<S>
 	 *            what to do with the produced sample
 	 */
 	public void sample(final ParticleKernel<S> kernel,
-//			final TreeDistancesProcessor tdp) {
+			//			final TreeDistancesProcessor tdp) {
 			final ParticleProcessor<S> tdp){
 		// System.out.println("Current random:" + rand.nextLong());
 		// System.out.println("nt=" + nThreads);
@@ -368,30 +368,20 @@ public final class ParticleFilterSMCSampler<S>
 				// LogInfo.logsForce("t, alpha * ess / samples.size() is: " + t
 				// + ", " + (alpha * ess / samples.size()));
 
+				if (t > 0)  currentKernel.setInitializing(false);
+
 				if (adaptiveTempDiff) {
-					oldTempDiff = tempDiff;
 					tempDiff = 0;
 					if (adaptiveType == 1)
 						alpha0 = alpha0 + 0.5 * Math.pow(1 - alpha, 2.0)
-								* Math.pow(alpha, t);
+						* Math.pow(alpha, t);
 					if (adaptiveType == 2)
 						alpha0 = alpha0 + 0.5 * Math.pow(1 - alpha, 3.0)
-								* (t + 1) * Math.pow(alpha, t);
+						* (t + 1) * Math.pow(alpha, t);
 
-					if (t > 0) {
-						// double alpha0 = alpha + rand.nextGaussian() * 0.02;
-						// double relativeESS = ess / samples.size();
-						// double newRelativeESS = Math.min(
-						// relativeESS + rand.nextGaussian() * 0.05, 1.0);
-						// System.out.println("newRelativeESS is: "
-						// + newRelativeESS);
-
+					if (t > 0) {						
 						tempDiff = temperatureDifference(
 								alpha0 * ess / samples.size(), 1.0e-7, 0, 0.1);
-
-						// tempDiff = 0.9 * tempDiff;
-						if (tempDiff == 0)
-							tempDiff = 0;
 					}
 
 				} else {
@@ -461,7 +451,7 @@ public final class ParticleFilterSMCSampler<S>
 			}
 			if (schedule != null)
 				schedule.monitor(new ProcessScheduleContext(t, t == T - 1,
-						ResampleStatus.NA));
+				ResampleStatus.NA));
 			// System.out.println("Current random:" + rand.nextLong() +
 			// "========>" + (_randcoutn++) + "<-----");
 			if(smcSamplerOut!=null)smcSamplerOut.flush();
@@ -473,7 +463,7 @@ public final class ParticleFilterSMCSampler<S>
 	// public static int _randcoutn = 0;
 
 	private boolean hasNulls(List<S> samples)
- {
+	{
 		for (S item : samples)
 			if (item == null)
 				return true;
@@ -482,7 +472,7 @@ public final class ParticleFilterSMCSampler<S>
 
 	private <S> Pair<List<S>, double[]> resampleAndPack(List<S> list,
 			double[] w, Random rand)
- {
+	{
 		if (!NumUtils.normalize(w))
 			throw new MeasureZeroException();
 
@@ -585,7 +575,7 @@ public final class ParticleFilterSMCSampler<S>
 	}
 
 	public static class StoreProcessor<S> implements ParticleProcessor<S>
- {
+	{
 		public List<S> particles = CollUtils.list();
 		public List<Double> ws = CollUtils.list();
 
@@ -606,26 +596,26 @@ public final class ParticleFilterSMCSampler<S>
 		}
 	}
 
-	
-	
-	
+
+
+
 	public static class ForkedProcessor<S> implements ParticleProcessor<S>
- {
+	{
 		public List<ParticleProcessor<S>> processors = new ArrayList<ParticleProcessor<S>>();
 
 		@SuppressWarnings("unchecked")
 		public ForkedProcessor(ParticleProcessor<S>... items)
- {
+		{
 			processors = new ArrayList(Arrays.asList(items));
 		}
 
 		public ForkedProcessor(Collection<ParticleProcessor<S>> items)
- {
+		{
 			this.processors = CollUtils.list(items);
 		}
 
 		public void process(S state, double weight)
- {
+		{
 			for (ParticleProcessor<S> processor : processors)
 				processor.process(state, weight);
 		}
@@ -645,7 +635,7 @@ public final class ParticleFilterSMCSampler<S>
 	 *            representation of the forest
 	 */
 	public static class ParticleMapperProcessor<D, I> implements
-			ParticleProcessor<D> {
+	ParticleProcessor<D> {
 		private final Fct<D, I> prj;
 		private final Counter<I> counter = new Counter<I>();
 
@@ -654,7 +644,7 @@ public final class ParticleFilterSMCSampler<S>
 		}
 
 		public static ParticleMapperProcessor<PartialCoalescentState, PartialCoalescentState> saveCoalescentParticlesProcessor()
- {
+		{
 			return saveParticlesProcessor();
 		}
 
@@ -702,13 +692,13 @@ public final class ParticleFilterSMCSampler<S>
 	}
 
 	public static class PCSHash implements
-			ParticleProcessor<PartialCoalescentState> {
+	ParticleProcessor<PartialCoalescentState> {
 		private Hasher hasher = new Hasher();
 
 		public void process(PartialCoalescentState state, double weight) {
 			hasher.add(weight).add(state.logLikelihood())
-					.add(state.topHeight())
-					.add(state.getUnlabeledArbre().deepToLispString());
+			.add(state.topHeight())
+			.add(state.getUnlabeledArbre().deepToLispString());
 		}
 
 		public int getHash() {

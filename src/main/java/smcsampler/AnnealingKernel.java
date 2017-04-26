@@ -27,9 +27,6 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 	@Option
 	public static int nAnnealing = 500;
 
-	@Option
-	public static boolean useSteppingStone = true;
-	
 	@Option public static boolean printBranchLengthMagnitudes = false;
 	private final UnrootedTreeState initial;
 	// private int nIter=1000;
@@ -37,6 +34,7 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 
 	private double temperature = 0;
 	private double newtemperature = 0;
+	private boolean initializing=true;
 
 	public double getTemperature() {
 		return temperature;
@@ -60,7 +58,7 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 		// + "newtemperature: " + newtemperature);
 		LogInfo.logs("newtemperature: " + newtemperature);
 
-		if (newtemperature == 1.0)
+		if (temperature == 1.0)
 			lastIter = true;
 
 	}
@@ -71,44 +69,32 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 	{
 		this.initial = initial;		 
 		this.proposalDistributions=proposalDistributions;
-		this.proposalOptions=proposalOptions;
-		
-		
+		this.proposalOptions=proposalOptions;		
 	}
 	public UnrootedTreeState getInitial() { return initial; }
 
 
-	
+
 	public boolean isLastIter()
 	{
 		return lastIter;
 	}
-	
+
 	public Object _next(
 			Random rand,
 			UnrootedTreeState current, boolean isPeek)
- {
-		if (temperature == 0) {
+	{
+		if (initializing) {
 			RootedTree proprosedRTree = TreeGenerators.sampleCoalescent(rand,
 					current.getUnrootedTree().leaves(), false);
 			UnrootedTreeState proposedState = current
 					.copyAndChange(UnrootedTree.fromRooted(proprosedRTree));
-			temperature = newtemperature;
-			Double logw = temperatureDifference
-					* (proposedState.logLikelihood() + prior(proposedState
-							.getNonClockTree()));
+			Double logw = 0.0;
 			return Pair.makePair(proposedState, logw);
 		}
 		//
 		PhyloSampler  sampler = new PhyloSampler();
-		// sampler.setOutputText(true);
 		sampler.init(current);
-		// sampler.sample();
-		// double oldtemperature = (1.0*(currentIter-1))/nAnnealing, temperature
-		// = (1.0*currentIter)/nAnnealing;
-		// System.out.println("temperature: "+temperature+"; currentIter"+temperature*nAnnealing);
-		// temperatureDifference = temperature - oldtemperature;
-		// System.out.println("newtemperature " + temperatureDifference);
 		ProposalDistribution proposal = null; 
 		UnrootedTreeState proposedState=null; 		 		
 		while(proposal==null)
@@ -119,26 +105,11 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 			{
 				proposedState = current.copyAndChange(result.getFirst());
 				final double logProposalRatio = result.getSecond();
-				// final double energyLogRatio = sampler.energy(proposedState) -
-				// sampler.currentEnergy();
-				// final double ratio = Math.min(1,Math.exp(logProposalRatio -
-				// energyLogRatio/temperature));
 
 				double currentPrior = current.getLogPrior(), proposePrior = proposedState
 						.getLogPrior();
-						
-						//prior(current.getUnrootedTree()), proposePrior = prior(proposedState
-						//.getUnrootedTree()); // log
-
-				// System.out.println("currentPrior " + currentPrior + " "
-				// + current.getLogPrior());
-				//
-				// System.out.println("proposePrior " + proposePrior + " "
-				// + proposedState.getLogPrior());
-
 				double logLikRatio = newtemperature
 						* (proposePrior + proposedState.getLogLikelihood())
-						// - temperature
 						- newtemperature
 						* (currentPrior + current.getLogLikelihood());
 				final double ratio = Math.min(1,
@@ -153,19 +124,8 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 			}
 		}
 		temperature = newtemperature;
-		// Double logw =
-		// (1.0/(nIter-currentIter+1)-1.0/(nIter-currentIter+2))*(current.logLikelihood());
-		// //+prior(current.getNonClockTree());
-	 double logw =0; 
-	 if(useSteppingStone) logw = temperatureDifference * current.logLikelihood();
-	 else	 
-			logw = temperatureDifference
-					* (current.logLikelihood() + prior(current
-							.getNonClockTree()));
-
-		//System.out.println("nIter: "+nIter+" currentIter:" + currentIter + (nIter-currentIter)+":  logw:"+(1.0/(nIter-currentIter+1)-1.0/(nIter-currentIter+2)));
-
-		// Math.log(0.5*(lambda*Math.exp(-lambda*delta)+0.1))
+		double logw =0; 
+		logw = temperatureDifference * current.logLikelihood();
 		return Pair.makePair(proposedState, logw);    
 	}
 
@@ -174,9 +134,9 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 	@Override
 	public Pair<UnrootedTreeState, Double> next(Random rand,
 			UnrootedTreeState current)
-			{
+	{
 		return (Pair) _next(rand, current, false);
-			}
+	}
 
 	@Override
 	public int nIterationsLeft(UnrootedTreeState partialState) {	
@@ -223,6 +183,14 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 					1.0 / AnnealDeltaProposalRate, urt.branchLength(edge));
 		}
 		return result;
+	}
+
+	public boolean isInitializing() {
+		return initializing;
+	}
+
+	public void setInitializing(boolean initializing) {
+		this.initializing = initializing;
 	}
 
 }

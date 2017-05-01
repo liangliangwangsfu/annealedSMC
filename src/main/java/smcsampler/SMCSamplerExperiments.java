@@ -98,6 +98,8 @@ public class SMCSamplerExperiments implements Runnable
 
 	@Option
 	public double essRatioThreshold = 0.7;
+	@Option public int nNumericalIntegration = 100000;
+	
 
 	private int nAnnealing = 5000;
 	public  File data = null;
@@ -132,7 +134,7 @@ public class SMCSamplerExperiments implements Runnable
 		//    data = new File( generator.output, "sim-0.msf");
 		logZout = IOUtils.openOutEasy(new File(Execution.getFile("results"),
 				"logZout.csv"));
-		logZout.println(CSV.header("treeName", "NumericalLogZ", "logZ"));
+		logZout.println(CSV.header("treeName", "Method", "NumericalLogZ", "logZ"));
 		PrintWriter out = IOUtils.openOutEasy( new File(output, "results.csv"));
 		out.println(CSV.header("Method", "Adaptive", "AdaptiveType", "T",
 				"IterScale",
@@ -181,12 +183,7 @@ public class SMCSamplerExperiments implements Runnable
 										DescriptiveStatisticsMap<String> stats = new DescriptiveStatisticsMap<String>();
 										//        ReportProgress.progressBlock(repPerDataPt);
 										String treeNameCurrentRep= treeName;
-
-										if (m == InferenceMethod.ANNEALING)
-											treeNameCurrentRep = treeNameCurrentRep + "adaptive"
-													+ adaptiveTempDiff + ".Rep" + j;
-										else
-											treeNameCurrentRep = treeNameCurrentRep + ".Rep"+ j;
+										treeNameCurrentRep = treeNameCurrentRep + ".Rep"+ j;
 										LogInfo.track("Repeat " + (j+1) + "/" + repPerDataPt);
 										//          LogInfo.forceSilent = true;
 										long  time=System.currentTimeMillis();
@@ -349,7 +346,7 @@ public class SMCSamplerExperiments implements Runnable
 				mb.nMCMCIters = (int) (iterScale * instance.nThousandIters * 1000);
 				String marginalLike= mb.computeMarginalLike(MSAParser.parseMSA(instance.data), instance.sequenceType);
 				//				mb.cleanUpMrBayesOutput();
-				instance.logZout.println(CSV.body(treeName,instance.marginalLogLike,
+				instance.logZout.println(CSV.body(treeName,"MB", "NA",
 						marginalLike));
 				instance.logZout.flush();
 
@@ -410,7 +407,7 @@ public class SMCSamplerExperiments implements Runnable
 						UnrootedTree.fromRooted(initTree), dataset, ctmc,
 						priorDensity);
 				if(dataset.observations().size()<=5)
-				instance.marginalLogLike=numericalIntegratedMarginalLikelihood(instance.mainRand, ncts, 10.0, 500000);
+				instance.marginalLogLike=numericalIntegratedMarginalLikelihood(instance.mainRand, ncts, 10.0, instance.nNumericalIntegration);
 				System.out.println();
 				System.out.println("logPrior: "+ncts.getLogPrior());
 				ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
@@ -419,8 +416,8 @@ public class SMCSamplerExperiments implements Runnable
 				AnnealingKernel ppk = new AnnealingKernel(ncts, proposalDistributions, proposalOptions);
 				TreeDistancesProcessor tdp = new TreeDistancesProcessor();
 				pc.sample(ppk, tdp);
-
-				instance.logZout.println(CSV.body(treeName,instance.marginalLogLike,
+				String methodname=instance.adaptiveTempDiff?"Adaptive":"Deterministic";				
+				instance.logZout.println(CSV.body(treeName,methodname,instance.marginalLogLike,
 						pc.estimateNormalizer()));
 				instance.logZout.flush();
 

@@ -1,8 +1,6 @@
 package smcsampler;
 import java.util.LinkedList;
 import java.util.Random;
-
-import nuts.math.Sampling;
 import pty.RootedTree;
 import pty.UnrootedTree;
 import pty.mcmc.PhyloSampler;
@@ -13,29 +11,18 @@ import ev.ex.TreeGenerators;
 import fig.basic.LogInfo;
 import fig.basic.Option;
 import fig.basic.Pair;
-import fig.basic.UnorderedPair;
-import goblin.Taxon;
-
-
 
 public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 {
-	@Option public static double AnnealDeltaProposalRate = 10.0;   //  
-	// @Option public static boolean useOptimal = true;
-	// @Option public static boolean useLazy = false;
-
+	@Option public static double AnnealDeltaProposalRate = 10.0;    
 	@Option
 	public static int nAnnealing = 500;
-
 	@Option public static boolean printBranchLengthMagnitudes = false;
 	private final UnrootedTreeState initial;
-	// private int nIter=1000;
 	private boolean lastIter = false;
-
 	private double temperature = 0;
 	private double newtemperature = 0;
-	private boolean initializing=true;
-
+	private boolean initializing = true;
 	public double getTemperature() {
 		return temperature;
 	}
@@ -53,11 +40,8 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 		this.temperatureDifference = temperatureDifference;
 		newtemperature = Math.min(temperature + temperatureDifference,
 				1.0);
-		// LogInfo.logsForce("temperature " + temperature
-		// + " temperatureDifference " + temperatureDifference + " "
-		// + "newtemperature: " + newtemperature);
-		LogInfo.logs("newtemperature: " + newtemperature);
-
+//		LogInfo.logs("temperature: " + temperature +"  newtemperature: " + newtemperature);
+//		System.out.println("temperature: " + temperature +"  newtemperature: " + newtemperature);
 		if (temperature == 1.0)
 			lastIter = true;
 
@@ -73,8 +57,6 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 	}
 	public UnrootedTreeState getInitial() { return initial; }
 
-
-
 	public boolean isLastIter()
 	{
 		return lastIter;
@@ -85,8 +67,7 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 			UnrootedTreeState current, boolean isPeek)
 	{
 		if (initializing) {
-			RootedTree proprosedRTree = TreeGenerators.sampleCoalescent(rand,
-					current.getUnrootedTree().leaves(), false);
+			RootedTree proprosedRTree = TreeGenerators.sampleExpNonclock(rand, current.getUnrootedTree().leaves(), AnnealDeltaProposalRate);
 			UnrootedTreeState proposedState = current
 					.copyAndChange(UnrootedTree.fromRooted(proprosedRTree));
 			Double logw = 0.0;
@@ -117,7 +98,6 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 					throw new RuntimeException();
 				if (rand.nextDouble() >= ratio) {
 					proposedState = current;
-					// System.out.println("ratio: "+ratio );
 				}
 			}
 		}
@@ -126,7 +106,6 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 		logw = temperatureDifference * current.logLikelihood();
 		return Pair.makePair(proposedState, logw);    
 	}
-
 
 
 	@Override
@@ -138,8 +117,6 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 
 	@Override
 	public int nIterationsLeft(UnrootedTreeState partialState) {	
-		// System.out.println("nIterationsLeft: "+ (nIter-currentIter));
-		// return (nIter-currentIter);
 		return (nAnnealing);
 	}
 
@@ -151,9 +128,7 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 		return this.currentIter;
 	}
 
-	private void sample(Random rand, UnrootedTreeState currentState) {
-	}
-
+	
 	private ProposalDistribution nextProposal(Random rand) {
 		if (proposalDistributions.isEmpty())
 			proposalDistributions.addAll(ProposalDistribution.Util
@@ -163,25 +138,14 @@ public class AnnealingKernel implements ParticleKernel<UnrootedTreeState>
 				.size()));
 	}
 
-	private double prior(UnrootedTree urt) {
-		double result = 0.0;
-		for (UnorderedPair<Taxon, Taxon> edge : urt.edges()) {
-			// System.out.println(edge
-			// + " "
-			// + urt.branchLength(edge)
-			// + "---"
-			// + Sampling.exponentialLogDensity(AnnealDeltaProposalRate,
-			// urt.branchLength(edge)));
-
-			// result += Sampling.exponentialLogDensity(AnnealDeltaProposalRate,
-			// urt.branchLength(edge)); // TODO: check the other places where I
-			// used this function. I should use 1.0 / AnnealDeltaProposalRate
-			// rather than AnnealDeltaProposalRate.
-			result += Sampling.exponentialLogDensity(
-					1.0 / AnnealDeltaProposalRate, urt.branchLength(edge));
-		}
-		return result;
-	}
+//	private double prior(UnrootedTree urt) {
+//		double result = 0.0;
+//		for (UnorderedPair<Taxon, Taxon> edge : urt.edges()) {
+//			result += Sampling.exponentialLogDensity(
+//					1.0 / AnnealDeltaProposalRate, urt.branchLength(edge));
+//		}
+//		return result;
+//	}
 
 	public boolean isInitializing() {
 		return initializing;

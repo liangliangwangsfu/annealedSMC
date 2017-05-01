@@ -51,8 +51,6 @@ public final class ParticleFilterSMCSampler<S>
 	public int nThreads = 1;
 	@Option
 	public ResamplingStrategy resamplingStrategy = ResamplingStrategy.ESS;
-	// @Option
-	// public ResamplingStrategy resamplingStrategy = ResamplingStrategy.ESS;
 	public static double essRatioThreshold = 0.5;
 
 	private List<S> conditional = null; // exclude initial state
@@ -137,7 +135,8 @@ public final class ParticleFilterSMCSampler<S>
 	}
 
 	public static <S> void bootstrapFilter(final ParticleKernel<S> kernel,
-			final ParticleProcessor<S> processor, final int N,
+			//			final ParticleProcessor<S> 
+			final TreeDistancesProcessor processor, final int N,
 			final Random rand) {
 		ParticleFilterSMCSampler<S> PF = new ParticleFilterSMCSampler<S>();
 		PF.N = N;
@@ -153,8 +152,6 @@ public final class ParticleFilterSMCSampler<S>
 	private double[] incrementalLogWeights;
 	private double varLogZ = 0;
 
-	// private List<Integer> ancestors;
-
 	public List<S> getSamples() {
 		return samples;
 	}
@@ -163,22 +160,14 @@ public final class ParticleFilterSMCSampler<S>
 		return logWeights;
 	}
 
-	// /// remove me
-	// private double max = Double.NEGATIVE_INFINITY;
-
 	private void propagateAndComputeWeights(final ParticleKernel<S> kernel,
 			final int t)
 	{
-		// //// remove me!
-		// max = Double.NEGATIVE_INFINITY;
-
 		if (verbose)
 			LogInfo.track("Processing...", false);
 
 		final double[] normalizedWeights0 = logWeights.clone();
 		NumUtils.expNormalize(normalizedWeights0);
-		final double[] logWeights2 = new double[N];
-		// System.out.println("Creating seed=" + rand.nextDouble());
 		seeds = Sampling.createSeeds(N, rand); // so that result for a given
 		// randomization is
 		// #-of-threads-invariant
@@ -201,55 +190,20 @@ public final class ParticleFilterSMCSampler<S>
 						samples.set(x, null);
 						logWeights[x] = Double.NEGATIVE_INFINITY;
 					} else {
-						// System.out.println(x+": "+logWeights[x]+" "+current.getSecond());
 						samples.set(x, current.getFirst());
 						incrementalLogWeights[x] = current.getSecond();
 						logWeights[x] += incrementalLogWeights[x];
-						// System.out.println(logWeights[x]);
-						logWeights2[x] = Math
-								.log(normalizedWeights0[x])
-								+ incrementalLogWeights[x];
-
-						// /// remove me
-						// if (current.getSecond() > max)
-						// {
-						// max = current.getSecond();
-						// System.out.println("New max" + max +
-						// "\nValue:\n"+((LazyPCS)current.getFirst()).peekState());
-						// }
-						//
-						// ///
-
 					}
 				}
 			}
 		});
-		// lognorm += SloppyMath.logAdd(logWeights) - Math.log(N);
-
-		double logZRatio=SloppyMath.logAdd(logWeights2);
-		double varLogZRatio = 0;
-		for (int k = 0; k < incrementalLogWeights.length; k++) {
-			double tmp=Math.exp(incrementalLogWeights[k] - logZRatio)-1;
-			varLogZRatio += normalizedWeights0[k] * tmp * tmp;
-		}
-		// varLogZRatio /= (N * N);
-		varLogZ += varLogZRatio;
-		lognorm += logZRatio;
-		if (verbose)
-			LogInfo.end_track();
 	}
-
 	private double lognorm = 0.0;
-
 	public double estimateNormalizer() {
-		// if (resamplingStrategy != ResamplingStrategy.ALWAYS)
-		// throw new RuntimeException();
 		return lognorm;
 	}
 
 	public double estimateNormalizerVariance() {
-		// if (resamplingStrategy != ResamplingStrategy.ALWAYS)
-		// throw new RuntimeException();
 		return varLogZ;
 	}
 
@@ -268,7 +222,8 @@ public final class ParticleFilterSMCSampler<S>
 	}
 
 	private void newProcess(int t, double[] normalizedWeights,
-			ParticleProcessor<S> processor, int T) {
+			//			ParticleProcessor<S> 
+			TreeDistancesProcessor processor, int T) {
 		if (schedule != null
 				&& schedule.shouldProcess(new ProcessScheduleContext(t,
 						t == T - 1, ResampleStatus.NA))) {
@@ -289,53 +244,33 @@ public final class ParticleFilterSMCSampler<S>
 	}
 
 
-	public double temperatureDifference(final double alpha,
-			double absoluteAccuracy,
-			double min,
-			double max) {
+	public double temperatureDifference(final double alpha,double absoluteAccuracy,double min,double max) {
 		final double[] logLikePrior = new double[samples.size()];
 		for (int n = 0; n < samples.size(); n++) {
 			UnrootedTreeState urt = ((UnrootedTreeState) samples.get(n));
 			logLikePrior[n] = urt.getLogLikelihood(); // + urt.getLogPrior();
 		}
-
 		int maxEval = 100;
 		UnivariateFunction f = new UnivariateFunction() {
 			public double value(double x) {
 				double[] logWeightLikePriorVec = new double[samples.size()];
-				for (int n = 0; n < samples.size(); n++) {
-					logWeightLikePriorVec[n] = logWeights[n] + logLikePrior[n]
-							* x;
-				}
+				for (int n = 0; n < samples.size(); n++) 
+					logWeightLikePriorVec[n] = logWeights[n] + logLikePrior[n]* x;				
 				NumUtils.expNormalize(logWeightLikePriorVec);
-				return (ess(logWeightLikePriorVec)
-						/ logWeightLikePriorVec.length - alpha);
+				return (ess(logWeightLikePriorVec)/logWeightLikePriorVec.length - alpha);
 			}
 		};
-
 		double result = 0;
 		try {
 			final double relativeAccuracy = absoluteAccuracy * 0.0001;
 			// final double absoluteAccuracy0 = 1.0e-6;
 			PegasusSolver solver = new PegasusSolver(relativeAccuracy,
 					absoluteAccuracy);
-
 			result = solver.solve(maxEval, (UnivariateFunction) f, min, max);
-			// System.out.println("result " + result);
 		} catch (RuntimeException e) {
 			LogInfo.logsForce("Solver Fail!");
 			result = 0;
-		}
-		// System.out.println("result " + result);
-		//
-		// int numK = 100;
-		// for (int k = 0; k < numK; k++) {
-		// System.out.println(k + " "
-		// + (result + (k - ((int) (0.5 * numK))) * 0.1 / numK)
-		// + " "
-		// + f.value(result + (k - ((int) (0.5 * numK))) * 0.1
-		// / numK));
-		// }
+		}	
 		return result;
 	}
 
@@ -348,28 +283,20 @@ public final class ParticleFilterSMCSampler<S>
 	 *            what to do with the produced sample
 	 */
 	public void sample(final ParticleKernel<S> kernel,
-			//			final TreeDistancesProcessor tdp) {
-			final ParticleProcessor<S> tdp){
-		// System.out.println("Current random:" + rand.nextLong());
-		// System.out.println("nt=" + nThreads);
+			final TreeDistancesProcessor tdp) {
+		//			final ParticleProcessor<S> tdp){
 		init(kernel);
-		int T = kernel.nIterationsLeft(kernel.getInitial());
-		// System.out.println("T=" + T);
+		//        int T = kernel.nIterationsLeft(kernel.getInitial());
+		int T = kernel.nIterationsLeft(kernel.getInitial()); //iter 0 is for initialization
 		if (isConditional() && conditional.size() != T)
 			throw new RuntimeException();
-
 		if(smcSamplerOut!=null)smcSamplerOut.println(CSV.header("t", "ESS", "tempDiff"));
 		double alpha0 = alpha;
 		for (int t = 0; t < T && !isLastIter; t++) {
 			if (kernel instanceof AnnealingKernel) {
 				AnnealingKernel currentKernel = ((AnnealingKernel) kernel);
 				currentKernel.setCurrentIter(t + 1);
-				// System.out.println("ess is: " + ess);
-				// LogInfo.logsForce("t, alpha * ess / samples.size() is: " + t
-				// + ", " + (alpha * ess / samples.size()));
-
 				if (t > 0)  currentKernel.setInitializing(false);
-
 				if (adaptiveTempDiff) {
 					tempDiff = 0;
 					if (adaptiveType == 1)
@@ -378,18 +305,15 @@ public final class ParticleFilterSMCSampler<S>
 					if (adaptiveType == 2)
 						alpha0 = alpha0 + 0.5 * Math.pow(1 - alpha, 3.0)
 						* (t + 1) * Math.pow(alpha, t);
-
 					if (t > 0) {						
 						tempDiff = temperatureDifference(
-								alpha0 * ess / samples.size(), 1.0e-7, 0, 0.1);
+								alpha0 * ess / samples.size(), 1.0e-7, 0, 0.1);//Math.min(0.005,);						
+						if(tempDiff == 0) tempDiff = 1.0 /(T-1);
 					}
 
 				} else {
-					tempDiff = 1.0 / T;
+					tempDiff = 1.0 / (T-1);
 				}
-				// System.out.println("ess: " + (ess));
-
-				// LogInfo.logsForce("tempDiff is: " + tempDiff);
 				currentKernel.setTemperatureDifference(tempDiff);
 				if (currentKernel.isLastIter())
 					isLastIter = true;
@@ -399,10 +323,6 @@ public final class ParticleFilterSMCSampler<S>
 			propagateAndComputeWeights(kernel, t);
 			double[] normalizedWeights = logWeights.clone();
 			NumUtils.expNormalize(normalizedWeights);
-
-			// if (t == 0)
-			// lognorm = SloppyMath.logAdd(logWeights) - Math.log(N);
-			// System.out.println("t=0, lognorm: " + lognorm);
 			if (verbose)
 				LogInfo.logs("LargestNormalizedWeights="
 						+ ArrayUtils.max(normalizedWeights));
@@ -413,19 +333,28 @@ public final class ParticleFilterSMCSampler<S>
 				LogInfo.logs("RelativeESS=" + ess
 						/ normalizedWeights.length);
 
-			// if (verbose) LogInfo.logs("NumberOfAncestors=" + new
-			// HashSet<Integer>(ancestors).size());
 			newProcess(t, normalizedWeights, tdp, T);
+
 			if (t < T - 1
 					&& (hasNulls(samples) || resamplingStrategy
 							.needResample(normalizedWeights))) {
 				samples = resample(samples, normalizedWeights, rand);
+//				double tmp=lognorm;
+//				double logZRatio=SloppyMath.logAdd(logWeights) - Math.log(N);
+				lognorm += SloppyMath.logAdd(logWeights) - Math.log(N);
 				logWeights = new double[N]; // reset weights
-				ess = N; // TODO: CHECK THIS!
+				ess = N; // TODO: CHECK THIS!			
+				//				lognorm+=logZRatio;
+//				System.out.println(tmp+"+"+logZRatio+" = "+lognorm);				
 			}
 			if (verbose)
 				LogInfo.end_track();
 			if ((t == T - 1 || isLastIter) && schedule != null) {
+//				double logZRatio=SloppyMath.logAdd(logWeights) - Math.log(N);
+//				double tmp=lognorm;
+				lognorm += SloppyMath.logAdd(logWeights) - Math.log(N);
+//				System.out.println("last Iter: "+tmp+"+"+logZRatio+" = "+lognorm);				
+
 				if (resampleLastRound) {
 					// this might be useful when processing a lot of particles
 					// is expensive
@@ -433,7 +362,7 @@ public final class ParticleFilterSMCSampler<S>
 							samples, normalizedWeights, rand);
 					samples = resampled.getFirst();
 					normalizedWeights = resampled.getSecond();
-
+					//					lognorm+=logZRatio;					
 				}
 				if (verbose)
 					LogInfo.track("Processing particles");
@@ -452,15 +381,12 @@ public final class ParticleFilterSMCSampler<S>
 			if (schedule != null)
 				schedule.monitor(new ProcessScheduleContext(t, t == T - 1,
 				ResampleStatus.NA));
-			// System.out.println("Current random:" + rand.nextLong() +
-			// "========>" + (_randcoutn++) + "<-----");
 			if(smcSamplerOut!=null)smcSamplerOut.flush();
 		}
 		setUnconditional();
 		if(smcSamplerOut!=null)smcSamplerOut.close();
 	}
 
-	// public static int _randcoutn = 0;
 
 	private boolean hasNulls(List<S> samples)
 	{

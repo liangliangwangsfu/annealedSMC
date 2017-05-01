@@ -35,6 +35,7 @@ import ev.ex.TreeGenerators;
 import ev.to.NJ;
 import fig.basic.IOUtils;
 import fig.basic.LogInfo;
+import fig.basic.NumUtils;
 import fig.basic.Option;
 import fig.exec.Execution;
 import fig.prob.Gamma;
@@ -103,6 +104,7 @@ public class SMCSamplerExperiments implements Runnable
 	private File output = null;
 	private RootedTree goldrt;
 	private PrintWriter logZout = null;
+	private double marginalLogLike=0;
 
 	public static void main(String[] args)
 	{
@@ -130,7 +132,7 @@ public class SMCSamplerExperiments implements Runnable
 		//    data = new File( generator.output, "sim-0.msf");
 		logZout = IOUtils.openOutEasy(new File(Execution.getFile("results"),
 				"logZout.csv"));
-		logZout.println(CSV.header("treeName", "logZ", "varLogZ"));
+		logZout.println(CSV.header("treeName", "NumericalLogZ", "logZ"));
 		PrintWriter out = IOUtils.openOutEasy( new File(output, "results.csv"));
 		out.println(CSV.header("Method", "Adaptive", "AdaptiveType", "T",
 				"IterScale",
@@ -142,16 +144,19 @@ public class SMCSamplerExperiments implements Runnable
 		else
 			files = IO.ls(new File(Execution.getFile(dataDirName)), "msf");
 		//    ReportProgress.progressBlock(files.size());
-		
+
 		boolean adaptiveTempDiff0=adaptiveTempDiff;
-		int nMrBayesIter=0;
-		
+		int nMrBayesIter=0;		
 		for (File f : files)
 		{
 			this.data = f;
 			final String treeName = f.getName();
 			LogInfo.track("Current tree:" + treeName);
 
+			// evaluate the likelihood of the inferred tree
+			Dataset dataset = DatasetUtils.fromAlignment(this.data, sequenceType);
+			CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites());
+			
 			UnrootedTree goldut = 
 					(generator.useGutellData ||!useDataGenerator)?
 							(refTree==null?null:UnrootedTree.fromRooted(RootedTree.Util.fromNewickString(IO.f2s(refTree)))):
@@ -192,14 +197,15 @@ public class SMCSamplerExperiments implements Runnable
 										IO.writeToDisk(new File(output, "consensus_"+treeName.replaceAll("[.]msf$",".newick")), inferred.toNewick());
 										{
 											// evaluate the likelihood of the inferred tree
-											Dataset dataset = DatasetUtils.fromAlignment(this.data, sequenceType);
-											CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites());
+											//											dataset = DatasetUtils.fromAlignment(this.data, sequenceType);
+											//											ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites());
 											UnrootedTreeState ncs = UnrootedTreeState.initFastState(inferred, dataset, ctmc);
+
 											if (m == InferenceMethod.ANNEALING)
-											out.println(CSV.body(m, adaptiveTempDiff, adaptiveType,
-													this.nAnnealing, iterScale, j,
-													"ConsensusLogLL", ncs.logLikelihood(),
-													treeName, time));
+												out.println(CSV.body(m, adaptiveTempDiff, adaptiveType,
+														this.nAnnealing, iterScale, j,
+														"ConsensusLogLL", ncs.logLikelihood(),
+														treeName, time));
 											else
 												out.println(CSV.body(m, "", "","", iterScale, j,
 														"ConsensusLogLL", ncs.logLikelihood(),
@@ -209,9 +215,9 @@ public class SMCSamplerExperiments implements Runnable
 											// best log likelihood, when available
 											double bestLogLL = processor.getBestLogLikelihood();
 											if (m == InferenceMethod.ANNEALING)
-											out.println(CSV.body(m, adaptiveTempDiff, adaptiveType,
-													this.nAnnealing, iterScale, j,
-													"BestSampledLogLL", bestLogLL, treeName, time));
+												out.println(CSV.body(m, adaptiveTempDiff, adaptiveType,
+														this.nAnnealing, iterScale, j,
+														"BestSampledLogLL", bestLogLL, treeName, time));
 											else
 												out.println(CSV.body(m, "", "","", iterScale, j,
 														"BestSampledLogLL", bestLogLL, treeName, time));
@@ -251,7 +257,7 @@ public class SMCSamplerExperiments implements Runnable
 										if ((l < nRun - 1) && (this.nAnnealing > nIter))
 										{
 											nIter = this.nAnnealing;			
-											nMrBayesIter=(int) (nIter*iterScalings.get(i));
+											nMrBayesIter=Math.max(1000000, (int) (nIter*iterScalings.get(i)));
 										}
 
 										if (l == nRun - 2) {
@@ -263,8 +269,8 @@ public class SMCSamplerExperiments implements Runnable
 									}									
 									adaptiveTempDiff = adaptiveTempDiff0;
 								}
-								
-								
+
+
 							}
 							LogInfo.end_track();
 
@@ -282,21 +288,45 @@ public class SMCSamplerExperiments implements Runnable
 	}
 
 
+	public static double numericalIntegratedMarginalLikelihood(Random rand, UnrootedTreeState ncts, double rate, int K)
+	{
+		int nLeaves = ncts.getLikelihoodModels().size();				
+		RootedTree proprosedRTree = null; 
+		UnrootedTreeState proposedState = null;
+		double[] result=new double[K];
+		for(int i=0;i<K;i++){	
+			proprosedRTree = TreeGenerators.sampleExpNonclock(rand, nLeaves, rate);
+//			System.out.println(proprosedRTree);
+			proposedState = ncts.copyAndChange(UnrootedTree.fromRooted(proprosedRTree));
+			result[i]=proposedState.logLikelihood();
+		}
+		
+	    double max = Double.NEGATIVE_INFINITY;
+	    for(int i = 0; i < K; i++)
+	      max = Math.max(max, result[i]);
+	    for(int i = 0; i < K; i++)
+	    	result[i] = Math.exp(result[i]-max);	   
+	    System.out.println(result);
+	    double finalresult=0;
+	    for(int i=0;i<K;i++)finalresult+=result[i];
+	    return  Math.log(finalresult)-Math.log(K)+max;
+	
+	}
+
 	public static enum InferenceMethod
 	{
-		/*		MCMC {
-			@Override
-			public TreeDistancesProcessor doIt(PMCMCExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
-			{
-				PhyloSampler._defaultPhyloSamplerOptions.rand = mainRand;
-				samplerMain.alignmentInputFile = instance.data;
-				samplerMain.st = instance.sequenceType;
-				PhyloSampler._defaultPhyloSamplerOptions.nIteration = (int) (iterScale * instance.nThousandIters * 1000);
-				samplerMain.run();
-				return samplerMain.tdp;
-			}
-		},
-		 */
+//			MCMC {
+//			@Override
+//			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
+//			{
+//				PhyloSampler._defaultPhyloSamplerOptions.rand = mainRand;
+//				samplerMain.alignmentInputFile = instance.data;
+//				samplerMain.st = instance.sequenceType;
+//				PhyloSampler._defaultPhyloSamplerOptions.nIteration = (int) (iterScale * instance.nThousandIters * 1000);
+//				samplerMain.run();
+//				return  samplerMain.tdp;
+//			}
+//		},		 
 		MB {
 			@Override
 			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance,
@@ -319,8 +349,8 @@ public class SMCSamplerExperiments implements Runnable
 				mb.nMCMCIters = (int) (iterScale * instance.nThousandIters * 1000);
 				String marginalLike= mb.computeMarginalLike(MSAParser.parseMSA(instance.data), instance.sequenceType);
 				//				mb.cleanUpMrBayesOutput();
-				instance.logZout.println(CSV.body(treeName,
-						marginalLike, ""));
+				instance.logZout.println(CSV.body(treeName,instance.marginalLogLike,
+						marginalLike));
 				instance.logZout.flush();
 
 				return tdp;
@@ -379,7 +409,10 @@ public class SMCSamplerExperiments implements Runnable
 				UnrootedTreeState ncts = UnrootedTreeState.initFastState(
 						UnrootedTree.fromRooted(initTree), dataset, ctmc,
 						priorDensity);
-				System.out.println(ncts.getLogPrior());
+				if(dataset.observations().size()<=5)
+				instance.marginalLogLike=numericalIntegratedMarginalLikelihood(instance.mainRand, ncts, 10.0, 500000);
+				System.out.println();
+				System.out.println("logPrior: "+ncts.getLogPrior());
 				ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
 				LinkedList<ProposalDistribution> proposalDistributions = new LinkedList<ProposalDistribution>();
 				// ParticleKernel<UnrootedTreeState> ppk
@@ -387,9 +420,8 @@ public class SMCSamplerExperiments implements Runnable
 				TreeDistancesProcessor tdp = new TreeDistancesProcessor();
 				pc.sample(ppk, tdp);
 
-				instance.logZout.println(CSV.body(treeName,
-						pc.estimateNormalizer(),
-						pc.estimateNormalizerVariance()));
+				instance.logZout.println(CSV.body(treeName,instance.marginalLogLike,
+						pc.estimateNormalizer()));
 				instance.logZout.flush();
 
 				LogInfo.track("Estimation of log(Z) ");

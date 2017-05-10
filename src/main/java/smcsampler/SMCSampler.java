@@ -1,13 +1,12 @@
 package smcsampler;
-
-
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
-
+import org.apache.commons.math3.analysis.UnivariateFunction;
+import org.apache.commons.math3.analysis.solvers.PegasusSolver;
 import monaco.process.ProcessSchedule;
 import monaco.process.ProcessScheduleContext;
 import monaco.process.ResampleStatus;
@@ -21,13 +20,8 @@ import nuts.maxent.SloppyMath;
 import nuts.util.CollUtils;
 import nuts.util.Counter;
 import nuts.util.Hasher;
-
-import org.apache.commons.math3.analysis.UnivariateFunction;
-import org.apache.commons.math3.analysis.solvers.PegasusSolver;
-
 import pty.mcmc.UnrootedTreeState;
 import pty.smc.PartialCoalescentState;
-import pty.smc.ParticleKernel;
 import fig.basic.LogInfo;
 import fig.basic.NumUtils;
 import fig.basic.Option;
@@ -37,8 +31,7 @@ import fig.prob.Multinomial;
 import goblin.BayesRiskMinimizer;
 import goblin.BayesRiskMinimizer.LossFct;
 
-
-public final class ParticleFilterSMCSampler<S>
+public final class SMCSampler<S>
 {
 	@Option
 	public boolean verbose = true;
@@ -51,6 +44,9 @@ public final class ParticleFilterSMCSampler<S>
 	public int nThreads = 1;
 	@Option
 	public ResamplingStrategy resamplingStrategy = ResamplingStrategy.ESS;
+
+	@Option
+	public  AdaptiveScheme adaptiveScheme=AdaptiveScheme.CONSTANT; 
 	public static double essRatioThreshold = 0.5;
 
 	private List<S> conditional = null; // exclude initial state
@@ -64,7 +60,7 @@ public final class ParticleFilterSMCSampler<S>
 	public boolean adaptiveTempDiff = false;
 	private boolean isLastIter = false;
 
-	public double alpha = 0.90;
+	public static double alpha = 0.90;
 
 	public int adaptiveType = 0;
 	public PrintWriter smcSamplerOut = null;
@@ -127,6 +123,33 @@ public final class ParticleFilterSMCSampler<S>
 		abstract boolean needResample(double[] weights);
 	}
 
+
+
+	public static enum AdaptiveScheme {
+		CONSTANT {
+			@Override
+			double alpha(double currentAlpha, int t){
+				return alpha;
+			}
+		},
+		Adaptive1 {
+			@Override
+			double alpha(double currentAlpha,int t){
+				return currentAlpha + 0.5 * Math.pow(1 - alpha, 2.0)
+				* Math.pow(alpha, t);
+			}
+		},
+		Adaptive2 {
+			@Override
+			double alpha(double currentAlpha,int t){
+				return currentAlpha + 0.5 * Math.pow(1 - alpha, 3.0)
+				* (t + 1) * Math.pow(alpha, t);
+			}
+		};				
+		abstract double alpha(double currentAlpha, int t);
+	}
+
+
 	public static double ess(double[] ws) {
 		double sumOfSqr = 0.0;
 		for (double w : ws)
@@ -134,11 +157,11 @@ public final class ParticleFilterSMCSampler<S>
 		return 1.0 / sumOfSqr;
 	}
 
-	public static <S> void bootstrapFilter(final ParticleKernel<S> kernel,
+	public static <S> void bootstrapFilter(final SMCSamplerKernel<S> kernel,
 			//			final ParticleProcessor<S> 
 			final TreeDistancesProcessor processor, final int N,
 			final Random rand) {
-		ParticleFilterSMCSampler<S> PF = new ParticleFilterSMCSampler<S>();
+		SMCSampler<S> PF = new SMCSampler<S>();
 		PF.N = N;
 		PF.rand = rand;
 		PF.resampleLastRound = false;
@@ -160,7 +183,7 @@ public final class ParticleFilterSMCSampler<S>
 		return logWeights;
 	}
 
-	private void propagateAndComputeWeights(final ParticleKernel<S> kernel,
+	private void propagateAndComputeWeights(final SMCSamplerKernel<S> kernel,
 			final int t)
 	{
 		if (verbose)
@@ -197,6 +220,7 @@ public final class ParticleFilterSMCSampler<S>
 				}
 			}
 		});
+		if(verbose) LogInfo.end_track();		
 	}
 	private double lognorm = 0.0;
 	public double estimateNormalizer() {
@@ -207,7 +231,7 @@ public final class ParticleFilterSMCSampler<S>
 		return varLogZ;
 	}
 
-	private void init(final ParticleKernel<S> kernel)
+	private void init(final SMCSamplerKernel<S> kernel)
 	{
 		// ancestors = new ArrayList<Integer>(N);
 		// for (int n = 0; n < N; n++)
@@ -269,7 +293,7 @@ public final class ParticleFilterSMCSampler<S>
 			result = solver.solve(maxEval, (UnivariateFunction) f, min, max);
 		} catch (RuntimeException e) {
 			LogInfo.logsForce("Solver Fail!");
-			result = 0;
+			result = -1;
 		}	
 		return result;
 	}
@@ -282,44 +306,41 @@ public final class ParticleFilterSMCSampler<S>
 	 * @param tdp
 	 *            what to do with the produced sample
 	 */
-	public void sample(final ParticleKernel<S> kernel,
+	public void sample(final SMCSamplerKernel<S> kernel,
 			final TreeDistancesProcessor tdp) {
 		//			final ParticleProcessor<S> tdp){
 		init(kernel);
 		//        int T = kernel.nIterationsLeft(kernel.getInitial());
-		int T = kernel.nIterationsLeft(kernel.getInitial()); //iter 0 is for initialization
-		if (isConditional() && conditional.size() != T)
-			throw new RuntimeException();
+		//		int T = kernel.nIterationsLeft(kernel.getInitial()); //iter 0 is for initialization
+		//		if (isConditional() && conditional.size() != T)
+		//			throw new RuntimeException();
 		if(smcSamplerOut!=null)smcSamplerOut.println(CSV.header("t", "ESS", "tempDiff"));
 		double alpha0 = alpha;
-		for (int t = 0; t < T && !isLastIter; t++) {
-			if (kernel instanceof AnnealingKernel) {
-				AnnealingKernel currentKernel = ((AnnealingKernel) kernel);
-				currentKernel.setCurrentIter(t + 1);
-				if (t > 0)  currentKernel.setInitializing(false);
-				if (adaptiveTempDiff) {
-					tempDiff = 0;
-					if (adaptiveType == 1)
-						alpha0 = alpha0 + 0.5 * Math.pow(1 - alpha, 2.0)
-						* Math.pow(alpha, t);
-					if (adaptiveType == 2)
-						alpha0 = alpha0 + 0.5 * Math.pow(1 - alpha, 3.0)
-						* (t + 1) * Math.pow(alpha, t);
-					if (t > 0) {						
-						tempDiff = temperatureDifference(
-								alpha0 * ess / samples.size(), 1.0e-7, 0, 0.1);//Math.min(0.005,);						
-						if(tempDiff == 0) tempDiff = 1.0 /(T-1);
-					}
-
-				} else {
-					tempDiff = 1.0 / (T-1);
+		//	for (int t = 0; t < T && !isLastIter; t++) {
+		int t=0;
+		while(!kernel.isLastIter()){			
+			kernel.setCurrentIter(t);
+//			if (t > 0)  kernel.setInitializing(false);
+			if (adaptiveTempDiff) {
+				tempDiff = 0;
+				alpha0 =adaptiveScheme.alpha(alpha0, t); 
+				if (t > 0) {						
+					tempDiff = temperatureDifference(
+							alpha0 * ess / samples.size(), 1.0e-7, 0, 0.1);						
+					if(tempDiff == -1) tempDiff = kernel.getDefaultTemperatureDifference();
 				}
-				currentKernel.setTemperatureDifference(tempDiff);
-				if (currentKernel.isLastIter())
-					isLastIter = true;
+
+			} else {
+				tempDiff = kernel.getDefaultTemperatureDifference();  //1.0 / (T-1);
 			}
+			kernel.setTemperatureDifference(tempDiff);
+			if (kernel.isLastIter())
+				isLastIter = true;
 			if (verbose)
-				LogInfo.track("Particle generation " + (t + 1) + "/" + T, true);
+				LogInfo.track("Particle generation " + (t + 1) , true); //"+ "/" + T, true);
+			//			if(t+1==7){ 
+			//				System.out.println("Debugging");			
+			//			}
 			propagateAndComputeWeights(kernel, t);
 			double[] normalizedWeights = logWeights.clone();
 			NumUtils.expNormalize(normalizedWeights);
@@ -327,42 +348,37 @@ public final class ParticleFilterSMCSampler<S>
 				LogInfo.logs("LargestNormalizedWeights="
 						+ ArrayUtils.max(normalizedWeights));
 			ess = ess(normalizedWeights);
-			if(smcSamplerOut!=null)smcSamplerOut.println(CSV.body(t, ess, tempDiff));
+			if(smcSamplerOut!=null)
+			{
+				smcSamplerOut.println(CSV.body(t, ess, tempDiff));
+				smcSamplerOut.flush();
+			}
 
 			if (verbose)
 				LogInfo.logs("RelativeESS=" + ess
 						/ normalizedWeights.length);
 
-			newProcess(t, normalizedWeights, tdp, T);
+			//			newProcess(t, normalizedWeights, tdp, T); //TODO: DOUBLE CHECK THIS!!
 
-			if (t < T - 1
+			if (!kernel.isLastIter()
 					&& (hasNulls(samples) || resamplingStrategy
 							.needResample(normalizedWeights))) {
 				samples = resample(samples, normalizedWeights, rand);
-//				double tmp=lognorm;
-//				double logZRatio=SloppyMath.logAdd(logWeights) - Math.log(N);
 				lognorm += SloppyMath.logAdd(logWeights) - Math.log(N);
 				logWeights = new double[N]; // reset weights
 				ess = N; // TODO: CHECK THIS!			
-				//				lognorm+=logZRatio;
-//				System.out.println(tmp+"+"+logZRatio+" = "+lognorm);				
 			}
 			if (verbose)
 				LogInfo.end_track();
-			if ((t == T - 1 || isLastIter) && schedule != null) {
-//				double logZRatio=SloppyMath.logAdd(logWeights) - Math.log(N);
-//				double tmp=lognorm;
+			if ((kernel.isLastIter() || isLastIter) && schedule != null) {
 				lognorm += SloppyMath.logAdd(logWeights) - Math.log(N);
-//				System.out.println("last Iter: "+tmp+"+"+logZRatio+" = "+lognorm);				
-
 				if (resampleLastRound) {
 					// this might be useful when processing a lot of particles
 					// is expensive
 					Pair<List<S>, double[]> resampled = resampleAndPack(
 							samples, normalizedWeights, rand);
 					samples = resampled.getFirst();
-					normalizedWeights = resampled.getSecond();
-					//					lognorm+=logZRatio;					
+					normalizedWeights = resampled.getSecond();					
 				}
 				if (verbose)
 					LogInfo.track("Processing particles");
@@ -378,10 +394,10 @@ public final class ParticleFilterSMCSampler<S>
 				if (verbose)
 					LogInfo.end_track();
 			}
-			if (schedule != null)
-				schedule.monitor(new ProcessScheduleContext(t, t == T - 1,
-				ResampleStatus.NA));
-			if(smcSamplerOut!=null)smcSamplerOut.flush();
+//			if (schedule != null)
+//				schedule.monitor(new ProcessScheduleContext(t, t == T - 1,
+//				ResampleStatus.NA));
+			t++;
 		}
 		setUnconditional();
 		if(smcSamplerOut!=null)smcSamplerOut.close();
@@ -490,7 +506,7 @@ public final class ParticleFilterSMCSampler<S>
 	}
 
 	/**
-	 * Weight is NOT in log scale, in contrast to ParticleKernel.next()
+	 * Weight is NOT in log scale, in contrast to SMCSamplerKernel.next()
 	 * 
 	 * @author bouchard
 	 * 

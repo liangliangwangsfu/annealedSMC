@@ -34,7 +34,7 @@ public class TreeDistancesProcessor
     RootedTreeProcessor,
     UnrootedTreeProcessor,
     ParticleProcessor,
-    Serializable, ParticleFilterSMCSampler.ParticleProcessor
+    Serializable, SMCSampler.ParticleProcessor
 {
   private static final long serialVersionUID = 1L;
   private final Counter<UnorderedPair<Taxon,Taxon>> _meanDistances = new Counter<UnorderedPair<Taxon,Taxon>>();

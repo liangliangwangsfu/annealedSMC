@@ -83,7 +83,7 @@ public class SMCSamplerExperiments implements Runnable
 	@Option 	public double csmc_trans2tranv=2.0;
 	@Option public double smcmcmcMix = 0.5;
 	@Option public boolean betterStartVal=true;
-	@Option public ParticleFilterSMCSampler.ResamplingStrategy resamplingStrategy=ParticleFilterSMCSampler.ResamplingStrategy.ESS;
+	@Option public SMCSampler.ResamplingStrategy resamplingStrategy=SMCSampler.ResamplingStrategy.ESS;
 	@Option
 	public int nCSMC = 10;
 	@Option
@@ -99,7 +99,7 @@ public class SMCSamplerExperiments implements Runnable
 	@Option
 	public double essRatioThreshold = 0.7;
 	@Option public int nNumericalIntegration = 100000;
-	
+
 
 	private int nAnnealing = 5000;
 	public  File data = null;
@@ -158,7 +158,7 @@ public class SMCSamplerExperiments implements Runnable
 			// evaluate the likelihood of the inferred tree
 			Dataset dataset = DatasetUtils.fromAlignment(this.data, sequenceType);
 			CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites());
-			
+
 			UnrootedTree goldut = 
 					(generator.useGutellData ||!useDataGenerator)?
 							(refTree==null?null:UnrootedTree.fromRooted(RootedTree.Util.fromNewickString(IO.f2s(refTree)))):
@@ -246,9 +246,8 @@ public class SMCSamplerExperiments implements Runnable
 										LogInfo.track("Score for current block of repeats (Method="+m + ",IterScale=" + iterScale + ",TreeName=" + treeName + ")");
 										for (TreeMetric tm : TreeEvaluator.coreTreeMetrics)
 											LogInfo.logsForce("Current " + tm + ":" + stats.median(tm.toString()));
-										LogInfo.end_track();
+										LogInfo.end_track();										
 										out.flush();
-										LogInfo.end_track();
 										//        ReportProgress.divisionCompleted();
 
 										if ((l < nRun - 1) && (this.nAnnealing > nIter))
@@ -256,18 +255,15 @@ public class SMCSamplerExperiments implements Runnable
 											nIter = this.nAnnealing;			
 											nMrBayesIter=Math.max(1000000, (int) (nIter*iterScalings.get(i)));
 										}
-
 										if (l == nRun - 2) {
 											AnnealingKernel.nAnnealing = nIter;											
 											adaptiveTempDiff = false;
 											adaptiveType = 0;
 										}
-
+										LogInfo.end_track();
 									}									
 									adaptiveTempDiff = adaptiveTempDiff0;
 								}
-
-
 							}
 							LogInfo.end_track();
 
@@ -293,37 +289,37 @@ public class SMCSamplerExperiments implements Runnable
 		double[] result=new double[K];
 		for(int i=0;i<K;i++){	
 			proprosedRTree = TreeGenerators.sampleExpNonclock(rand, nLeaves, rate);
-//			System.out.println(proprosedRTree);
+			//			System.out.println(proprosedRTree);
 			proposedState = ncts.copyAndChange(UnrootedTree.fromRooted(proprosedRTree));
 			result[i]=proposedState.logLikelihood();
 		}
-		
-	    double max = Double.NEGATIVE_INFINITY;
-	    for(int i = 0; i < K; i++)
-	      max = Math.max(max, result[i]);
-	    for(int i = 0; i < K; i++)
-	    	result[i] = Math.exp(result[i]-max);	   
-	    System.out.println(result);
-	    double finalresult=0;
-	    for(int i=0;i<K;i++)finalresult+=result[i];
-	    return  Math.log(finalresult)-Math.log(K)+max;
-	
+
+		double max = Double.NEGATIVE_INFINITY;
+		for(int i = 0; i < K; i++)
+			max = Math.max(max, result[i]);
+		for(int i = 0; i < K; i++)
+			result[i] = Math.exp(result[i]-max);	   
+		System.out.println(result);
+		double finalresult=0;
+		for(int i=0;i<K;i++)finalresult+=result[i];
+		return  Math.log(finalresult)-Math.log(K)+max;
+
 	}
 
 	public static enum InferenceMethod
 	{
-//			MCMC {
-//			@Override
-//			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
-//			{
-//				PhyloSampler._defaultPhyloSamplerOptions.rand = mainRand;
-//				samplerMain.alignmentInputFile = instance.data;
-//				samplerMain.st = instance.sequenceType;
-//				PhyloSampler._defaultPhyloSamplerOptions.nIteration = (int) (iterScale * instance.nThousandIters * 1000);
-//				samplerMain.run();
-//				return  samplerMain.tdp;
-//			}
-//		},		 
+		//			MCMC {
+		//			@Override
+		//			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
+		//			{
+		//				PhyloSampler._defaultPhyloSamplerOptions.rand = mainRand;
+		//				samplerMain.alignmentInputFile = instance.data;
+		//				samplerMain.st = instance.sequenceType;
+		//				PhyloSampler._defaultPhyloSamplerOptions.nIteration = (int) (iterScale * instance.nThousandIters * 1000);
+		//				samplerMain.run();
+		//				return  samplerMain.tdp;
+		//			}
+		//		},		 
 		MB {
 			@Override
 			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance,
@@ -364,7 +360,7 @@ public class SMCSamplerExperiments implements Runnable
 				// resultFolder), treeName + "logZEst.csv"));
 				// out.println(CSV.header("logZ", "varLogZ"));
 
-				ParticleFilterSMCSampler<UnrootedTreeState> pc = new ParticleFilterSMCSampler<UnrootedTreeState>();
+				SMCSampler<UnrootedTreeState> pc = new SMCSampler<UnrootedTreeState>();
 				// ParticleFilter<UnrootedTreeState> pc = new
 				// ParticleFilter<UnrootedTreeState>();
 				pc.N = (int) (iterScale * instance.nThousandIters * 1000);
@@ -407,13 +403,13 @@ public class SMCSamplerExperiments implements Runnable
 						UnrootedTree.fromRooted(initTree), dataset, ctmc,
 						priorDensity);
 				if(dataset.observations().size()<=5)
-				instance.marginalLogLike=numericalIntegratedMarginalLikelihood(instance.mainRand, ncts, 10.0, instance.nNumericalIntegration);
+					instance.marginalLogLike=numericalIntegratedMarginalLikelihood(instance.mainRand, ncts, 10.0, instance.nNumericalIntegration);
 				System.out.println();
 				System.out.println("logPrior: "+ncts.getLogPrior());
 				ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
 				LinkedList<ProposalDistribution> proposalDistributions = new LinkedList<ProposalDistribution>();
 				// ParticleKernel<UnrootedTreeState> ppk
-				AnnealingKernel ppk = new AnnealingKernel(ncts, proposalDistributions, proposalOptions);
+				AnnealingKernel ppk = new AnnealingKernel(ncts, 1.0/instance.nAnnealing, proposalDistributions, proposalOptions);				
 				TreeDistancesProcessor tdp = new TreeDistancesProcessor();
 				pc.sample(ppk, tdp);
 				String methodname=instance.adaptiveTempDiff?"Adaptive":"Deterministic";				

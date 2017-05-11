@@ -1,6 +1,19 @@
 package smcsampler;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
 import java.util.Random;
+import java.util.Set;
+
+import com.google.common.collect.Lists;
+
+import conifer.trees.StandardNonClockPriorDensity;
 import pty.RootedTree;
 import pty.UnrootedTree;
 import pty.mcmc.PhyloSampler;
@@ -10,6 +23,12 @@ import pty.mcmc.UnrootedTreeState;
 import ev.ex.TreeGenerators;
 import fig.basic.Option;
 import fig.basic.Pair;
+import fig.basic.UnorderedPair;
+import fig.prob.Distrib;
+import fig.prob.Gamma;
+import goblin.Taxon;
+import nuts.math.Graph;
+import nuts.math.HashGraph;
 
 public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 {
@@ -23,7 +42,7 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 	private double defaultTemperatureDifference =0;
 	private boolean initializing = true;
 	private int currentIter=0;
-	
+
 	private LinkedList<ProposalDistribution> proposalDistributions = null;
 	private ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
 
@@ -44,8 +63,8 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 		this.temperatureDifference = temperatureDifference;
 		newtemperature = Math.min(temperature + temperatureDifference,
 				1.0);
-			//	LogInfo.logs("temperature: " + temperature +"  newtemperature: " + newtemperature);
-			//	System.out.println("temperature: " + temperature +"  newtemperature: " + newtemperature);
+		//	LogInfo.logs("temperature: " + temperature +"  newtemperature: " + newtemperature);
+		//	System.out.println("temperature: " + temperature +"  newtemperature: " + newtemperature);
 	}
 	public AnnealingKernel(UnrootedTreeState initial, double defaultTemperatureDifference, LinkedList<ProposalDistribution> proposalDistributions, ProposalDistribution.Options proposalOptions) 
 	{
@@ -61,23 +80,25 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 		return temperature == 1.0;
 	}
 
-	
 	public UnrootedTreeState sampleFromPrior(Random rand, UnrootedTreeState current)
 	{
 		//NonClockTreePrior; 
-		RootedTree proprosedRTree = TreeGenerators.sampleExpNonclock(rand, current.getUnrootedTree().leaves(), AnnealDeltaProposalRate);
-		UnrootedTreeState proposedState = current.copyAndChange(UnrootedTree.fromRooted(proprosedRTree));		
+		Gamma exponentialPrior = Gamma.exponential(AnnealDeltaProposalRate);
+//		RootedTree proprosedRTree = TreeGenerators.sampleExpNonclock(rand, current.getUnrootedTree().leaves(), AnnealDeltaProposalRate);
+//		UnrootedTreeState proposedState = current.copyAndChange(UnrootedTree.fromRooted(proprosedRTree));
+//		RootedTree proprosedRTree = generate(rand, exponentialPrior,current.getUnrootedTree().leaves()); 		
+		UnrootedTreeState proposedState = current.copyAndChange(generate(rand, exponentialPrior,current.getUnrootedTree().leaves()));				
 		return proposedState;
 	}
-	
+
 	@Override
 	public Pair<UnrootedTreeState, Double> next(
 			Random rand,
 			UnrootedTreeState current)
 	{
 		if (currentIter==0)  current = sampleFromPrior(rand, current);					
-//		PhyloSampler  sampler = new PhyloSampler();
-//		sampler.init(current);
+		//		PhyloSampler  sampler = new PhyloSampler();
+		//		sampler.init(current);
 		ProposalDistribution proposal = null; 
 		UnrootedTreeState proposedState=null; 		 		
 		while(proposal==null)
@@ -107,17 +128,17 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 	}
 
 
-//	@Override
-//	public Pair<UnrootedTreeState, Double> next(Random rand,
-//			UnrootedTreeState current)
-//	{
-//		return (Pair) _next(rand, current, false);
-//	}
+	//	@Override
+	//	public Pair<UnrootedTreeState, Double> next(Random rand,
+	//			UnrootedTreeState current)
+	//	{
+	//		return (Pair) _next(rand, current, false);
+	//	}
 
-//	@Override
-//	public int nIterationsLeft(UnrootedTreeState partialState) {	
-//		return (nAnnealing);
-//	}
+	//	@Override
+	//	public int nIterationsLeft(UnrootedTreeState partialState) {	
+	//		return (nAnnealing);
+	//	}
 
 	public void setCurrentIter(int  currentIter) {	
 		this.currentIter=currentIter; 
@@ -162,4 +183,56 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 		this.defaultTemperatureDifference = defaultTemperatureDifference;
 	}
 
+	
+	/**
+	   * Generate a tree with a topology uniformly distributed
+	   * over bifurcating unrooted tree, using:
+	   * 
+	   *   The generation of random, binary unordered trees
+	   *   George W. Furnas
+	   *     see 2.1.2 (p.204)
+	   */
+	
+	  public static UnrootedTree generate(
+		      Random random, 
+		      Distrib <Double> branchDistribution,
+		      List<Taxon> leaves)
+		  {
+		    List<UnorderedPair<Taxon, Taxon>> result = new ArrayList<UnorderedPair<Taxon, Taxon>>();
+		    List<Taxon> shuffled = Lists.newArrayList(leaves);
+		    Collections.shuffle(shuffled, random);
+		    Queue<Taxon> queue = Lists.newLinkedList(shuffled);
+		    if (queue.isEmpty())
+		      new RuntimeException();
+		    
+		    Taxon leaf1 = queue.poll();
+		    if (queue.isEmpty())
+		    	new RuntimeException();
+		    
+		    Taxon leaf2 = queue.poll();
+		    result.add(new UnorderedPair<Taxon, Taxon>(leaf1, leaf2)); 
+		    
+		    int i=1;
+		    while (!queue.isEmpty())
+		    {
+		      // pick a random edge
+//		    	SamplingUtils.uniformFromCollection(random, result.getTopology().edgeSet());
+		      UnorderedPair<Taxon, Taxon> edge =result.get(random.nextInt(result.size()));
+		      Taxon internal=new Taxon("internal_" + (i++));		      
+//		      TreeNode internal = TreeNode.nextUnlabelled();
+		      Taxon newLeaf = queue.poll();
+		      result.remove(edge);
+		      result.add(new UnorderedPair<Taxon, Taxon>(newLeaf, internal));
+		      result.add(new UnorderedPair<Taxon, Taxon>(internal, edge.getFirst()));
+		      result.add(new UnorderedPair<Taxon, Taxon>(internal, edge.getSecond()));
+		    }
+		    		    
+		    Graph<Taxon> topo=new HashGraph(new HashSet<UnorderedPair<Taxon, Taxon>>(result));
+			Map<UnorderedPair<Taxon, Taxon>, Double> branchLengths = new HashMap<UnorderedPair<Taxon,Taxon>,Double>();
+			
+		    for (UnorderedPair<Taxon, Taxon> edge : result)		    			    
+		    	branchLengths.put(edge, branchDistribution.sampleObject(random));
+		    return new UnrootedTree(topo, branchLengths);
+		  }
+	
 }

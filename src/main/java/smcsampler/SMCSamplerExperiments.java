@@ -282,19 +282,12 @@ public class SMCSamplerExperiments implements Runnable
 
 
 	public static double numericalIntegratedMarginalLikelihood(Random rand, UnrootedTreeState ncts, double rate, int K)
-	{
-		int nLeaves = ncts.getLikelihoodModels().size();				
-		RootedTree proprosedRTree = null; 
-		UnrootedTreeState proposedState = null;
+	{		
+		Gamma exponentialPrior = Gamma.exponential(rate);
 		double[] result=new double[K];
-		for(int i=0;i<K;i++){	
-			proprosedRTree = TreeGenerators.sampleExpNonclock(rand, nLeaves, rate);
-			//			System.out.println(proprosedRTree);
-			proposedState = ncts.copyAndChange(UnrootedTree.fromRooted(proprosedRTree));
-			result[i]=proposedState.logLikelihood();
-		}
-
-		double max = Double.NEGATIVE_INFINITY;
+		for(int i=0;i<K;i++)					
+			result[i]=ncts.copyAndChange(AnnealingKernel.generate(rand, exponentialPrior,ncts.getUnrootedTree().leaves())).logLikelihood();
+			double max = Double.NEGATIVE_INFINITY;
 		for(int i = 0; i < K; i++)
 			max = Math.max(max, result[i]);
 		for(int i = 0; i < K; i++)
@@ -303,7 +296,6 @@ public class SMCSamplerExperiments implements Runnable
 		double finalresult=0;
 		for(int i=0;i<K;i++)finalresult+=result[i];
 		return  Math.log(finalresult)-Math.log(K)+max;
-
 	}
 
 	public static enum InferenceMethod

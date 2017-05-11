@@ -253,7 +253,7 @@ public class SMCSamplerExperiments implements Runnable
 										if ((l < nRun - 1) && (this.nAnnealing > nIter))
 										{
 											nIter = this.nAnnealing;			
-											nMrBayesIter=Math.max(1000000, (int) (nIter*iterScalings.get(i)));
+											nMrBayesIter=Math.max(100000, (int) (nIter*iterScalings.get(i)));
 										}
 										if (l == nRun - 2) {
 											AnnealingKernel.nAnnealing = nIter;											

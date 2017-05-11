@@ -64,7 +64,7 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 	
 	public UnrootedTreeState sampleFromPrior(Random rand, UnrootedTreeState current)
 	{
-		//NonClockTreePrior
+		//NonClockTreePrior; 
 		RootedTree proprosedRTree = TreeGenerators.sampleExpNonclock(rand, current.getUnrootedTree().leaves(), AnnealDeltaProposalRate);
 		UnrootedTreeState proposedState = current.copyAndChange(UnrootedTree.fromRooted(proprosedRTree));		
 		return proposedState;
@@ -76,8 +76,8 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 			UnrootedTreeState current)
 	{
 		if (currentIter==0)  current = sampleFromPrior(rand, current);					
-		PhyloSampler  sampler = new PhyloSampler();
-		sampler.init(current);
+//		PhyloSampler  sampler = new PhyloSampler();
+//		sampler.init(current);
 		ProposalDistribution proposal = null; 
 		UnrootedTreeState proposedState=null; 		 		
 		while(proposal==null)

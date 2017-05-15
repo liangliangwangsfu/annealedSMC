@@ -206,10 +206,10 @@ public class MrBayes implements Runnable
 						(fixGTRGammaPara?fixGtrGammaStr:"")+
 						(setstarttree?("startvals  tau = starttree;\n"+
 								"startvals  V = starttree;\n"):"")+
-						"propset  NNI(Tau,V)$prob=25\n"+
-						"propset Multiplier(V)$prob=25\n"+
-						"propset Nodeslider(V)$prob=25\n"+
-						"propset TLMultiplier(V)$prob=25\n"+
+						"propset  NNI(Tau,V)$prob=25;\n"+
+						"propset Multiplier(V)$prob=25;\n"+
+						"propset Nodeslider(V)$prob=25;\n"+
+						"propset TLMultiplier(V)$prob=25;\n"+
 						(setSSinMB?"ss;\n":"mcmc;\n" +								
 								"sumt;\n")+								 
 				"end;\n");

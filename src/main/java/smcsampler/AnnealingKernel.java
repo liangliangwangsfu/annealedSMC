@@ -21,6 +21,7 @@ import pty.mcmc.PhyloSampler.NonClockTreePrior;
 import pty.mcmc.ProposalDistribution;
 import pty.mcmc.UnrootedTreeState;
 import ev.ex.TreeGenerators;
+import fig.basic.LogInfo;
 import fig.basic.Option;
 import fig.basic.Pair;
 import fig.basic.UnorderedPair;
@@ -63,7 +64,7 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 		this.temperatureDifference = temperatureDifference;
 		newtemperature = Math.min(temperature + temperatureDifference,
 				1.0);
-		//	LogInfo.logs("temperature: " + temperature +"  newtemperature: " + newtemperature);
+			LogInfo.logs("temperature: " + temperature +"  newtemperature: " + newtemperature);
 		//	System.out.println("temperature: " + temperature +"  newtemperature: " + newtemperature);
 	}
 	public AnnealingKernel(UnrootedTreeState initial, double defaultTemperatureDifference, LinkedList<ProposalDistribution> proposalDistributions, ProposalDistribution.Options proposalOptions) 
@@ -96,14 +97,18 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 			Random rand,
 			UnrootedTreeState current)
 	{
-		if (currentIter==0)  current = sampleFromPrior(rand, current);					
+		if (currentIter==0) 
+			{
+			current = sampleFromPrior(rand, current);			
+		    return Pair.makePair(current, 0.0); 
+			}
 		//		PhyloSampler  sampler = new PhyloSampler();
 		//		sampler.init(current);
 		ProposalDistribution proposal = null; 
 		UnrootedTreeState proposedState=null; 		 		
 		while(proposal==null)
 		{
-			proposal = nextProposal(rand);
+			proposal = nextProposal(rand);         
 			Pair<UnrootedTree,Double> result = proposal.propose(current.getNonClockTree(), rand);
 			if (result != null) // might happen e.g. when trying to do nni with 3 leaves
 			{

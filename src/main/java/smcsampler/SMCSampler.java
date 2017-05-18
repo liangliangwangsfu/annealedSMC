@@ -58,8 +58,6 @@ public final class SMCSampler<S>
 
 	@Option
 	public boolean adaptiveTempDiff = false;
-	private boolean isLastIter = false;
-
 	public static double alpha = 0.90;
 
 	public int adaptiveType = 0;
@@ -123,8 +121,6 @@ public final class SMCSampler<S>
 		abstract boolean needResample(double[] weights);
 	}
 
-
-
 	public static enum AdaptiveScheme {
 		CONSTANT {
 			@Override
@@ -148,7 +144,6 @@ public final class SMCSampler<S>
 		};				
 		abstract double alpha(double currentAlpha, int t);
 	}
-
 
 	public static double ess(double[] ws) {
 		double sumOfSqr = 0.0;
@@ -319,8 +314,7 @@ public final class SMCSampler<S>
 		//	for (int t = 0; t < T && !isLastIter; t++) {
 		int t=0;
 		while(!kernel.isLastIter()){			
-			kernel.setCurrentIter(t);
-//			if (t > 0)  kernel.setInitializing(false);
+			kernel.setCurrentIter(t);			
 			if (adaptiveTempDiff) {
 				tempDiff = 0;
 				alpha0 =adaptiveScheme.alpha(alpha0, t); 
@@ -329,18 +323,12 @@ public final class SMCSampler<S>
 							alpha0 * ess / samples.size(), 1.0e-7, 0, 0.1);						
 					if(tempDiff == -1) tempDiff = kernel.getDefaultTemperatureDifference();
 				}
-
 			} else {
 				tempDiff = kernel.getDefaultTemperatureDifference();  //1.0 / (T-1);
 			}
 			kernel.setTemperatureDifference(tempDiff);
-			if (kernel.isLastIter())
-				isLastIter = true;
 			if (verbose)
 				LogInfo.track("Particle generation " + (t + 1) , true); //"+ "/" + T, true);
-			//			if(t+1==7){ 
-			//				System.out.println("Debugging");			
-			//			}
 			propagateAndComputeWeights(kernel, t);
 			double[] normalizedWeights = logWeights.clone();
 			NumUtils.expNormalize(normalizedWeights);
@@ -370,7 +358,7 @@ public final class SMCSampler<S>
 			}
 			if (verbose)
 				LogInfo.end_track();
-			if ((kernel.isLastIter() || isLastIter) && schedule != null) {
+			if ((kernel.isLastIter() ) && schedule != null) {
 				lognorm += SloppyMath.logAdd(logWeights) - Math.log(N);
 				if (resampleLastRound) {
 					// this might be useful when processing a lot of particles
@@ -394,9 +382,9 @@ public final class SMCSampler<S>
 				if (verbose)
 					LogInfo.end_track();
 			}
-//			if (schedule != null)
-//				schedule.monitor(new ProcessScheduleContext(t, t == T - 1,
-//				ResampleStatus.NA));
+			//			if (schedule != null)
+			//				schedule.monitor(new ProcessScheduleContext(t, t == T - 1,
+			//				ResampleStatus.NA));
 			t++;
 		}
 		setUnconditional();

@@ -393,7 +393,7 @@ public class SMCSamplerExperiments implements Runnable
 				CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites());
 				UnrootedTreeState ncts = UnrootedTreeState.initFastState(
 						UnrootedTree.fromRooted(initTree), dataset, ctmc,
-						priorDensity);
+						priorDensity);			
 				if(dataset.observations().size()<=5)
 					instance.marginalLogLike=numericalIntegratedMarginalLikelihood(instance.mainRand, ncts, 10.0, instance.nNumericalIntegration);
 				System.out.println();

@@ -100,8 +100,8 @@ public class SMCSamplerExperiments implements Runnable
 	public double essRatioThreshold = 0.7;
 	@Option public int nNumericalIntegration = 100000;
 
-
-	private int nAnnealing = 5000;
+	@Option
+	public int nAnnealing = 5000;
 	public  File data = null;
 	private File output = null;
 	private RootedTree goldrt;
@@ -256,7 +256,7 @@ public class SMCSamplerExperiments implements Runnable
 											nMrBayesIter=Math.max(100000, (int) (nIter*iterScalings.get(i)));
 										}
 										if (l == nRun - 2) {
-											AnnealingKernel.nAnnealing = nIter;											
+											nAnnealing = nIter;											
 											adaptiveTempDiff = false;
 											adaptiveType = 0;
 										}
@@ -287,7 +287,7 @@ public class SMCSamplerExperiments implements Runnable
 		double[] result=new double[K];
 		for(int i=0;i<K;i++)					
 			result[i]=ncts.copyAndChange(AnnealingKernel.generate(rand, exponentialPrior,ncts.getUnrootedTree().leaves())).logLikelihood();
-			double max = Double.NEGATIVE_INFINITY;
+		double max = Double.NEGATIVE_INFINITY;
 		for(int i = 0; i < K; i++)
 			max = Math.max(max, result[i]);
 		for(int i = 0; i < K; i++)

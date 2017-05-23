@@ -39,6 +39,7 @@ public interface SMCSamplerKernel<S>
   public void setTemperatureDifference(double temperatureDifference);
   public boolean isLastIter();
   public double getDefaultTemperatureDifference(); 
+  public double getTemperatureDifference();
   public double getTemperature();
   public void setTemperature(double temperature); 
 }

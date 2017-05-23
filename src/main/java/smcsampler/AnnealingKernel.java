@@ -12,7 +12,6 @@ import com.google.common.collect.Lists;
 import pty.UnrootedTree;
 import pty.mcmc.ProposalDistribution;
 import pty.mcmc.UnrootedTreeState;
-import fig.basic.LogInfo;
 import fig.basic.Option;
 import fig.basic.Pair;
 import fig.basic.UnorderedPair;
@@ -51,11 +50,19 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 	public double getTemperatureDifference() {
 		return temperatureDifference;
 	}
-	public void setTemperatureDifference(double temperatureDifference) {
-		this.temperatureDifference = temperatureDifference;
-		newtemperature = Math.min(temperature + temperatureDifference,
-				1.0);
-//		LogInfo.logs("temperature: " + temperature +"  newtemperature: " + newtemperature);
+	public void setTemperatureDifference(double temperatureDifference) {				
+		double newTemp=temperature + temperatureDifference;
+		if(newTemp>1.0) 
+		{
+			newtemperature=1.0;
+			this.temperatureDifference=1.0-temperature;			
+		}
+		else
+		{
+			newtemperature=newTemp;
+			this.temperatureDifference=temperatureDifference;
+		}			
+		//		LogInfo.logs("temperature: " + temperature +"  newtemperature: " + newtemperature);
 	}
 	public AnnealingKernel(UnrootedTreeState initial, double defaultTemperatureDifference, LinkedList<ProposalDistribution> proposalDistributions, ProposalDistribution.Options proposalOptions) 
 	{
@@ -68,7 +75,7 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 
 	public boolean isLastIter()
 	{
-		return temperature == 1.0;
+		return temperature >= 1.0;
 	}
 
 	public UnrootedTreeState sampleFromPrior(Random rand, UnrootedTreeState current)

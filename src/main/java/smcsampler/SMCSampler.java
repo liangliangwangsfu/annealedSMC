@@ -204,8 +204,8 @@ public final class SMCSampler<S>
 						logWeights[x] = Double.NEGATIVE_INFINITY;
 					} else {
 						samples.set(x, current.getFirst());
-//						incrementalLogWeights[x] = current.getSecond();
-//						logWeights[x] += incrementalLogWeights[x];
+						//						incrementalLogWeights[x] = current.getSecond();
+						//						logWeights[x] += incrementalLogWeights[x];
 						logWeights[x] += current.getSecond();
 					}
 				}
@@ -263,7 +263,7 @@ public final class SMCSampler<S>
 		} catch (RuntimeException e) {
 			LogInfo.logsForce("Solver Fail!");
 			result = -1;
-		}	
+		}			
 		return result;
 	}
 
@@ -312,7 +312,7 @@ public final class SMCSampler<S>
 			ess = ess(normalizedWeights);
 			if(smcSamplerOut!=null)
 			{
-				smcSamplerOut.println(CSV.body(t, ess, tempDiff, kernel.getTemperature()));
+				smcSamplerOut.println(CSV.body(t, ess,kernel.getTemperatureDifference(), kernel.getTemperature()));
 				smcSamplerOut.flush();
 			}
 
@@ -324,16 +324,16 @@ public final class SMCSampler<S>
 					&& (hasNulls(samples) || resamplingStrategy
 							.needResample(normalizedWeights))) {
 				samples = resample(samples, normalizedWeights, rand);
-//				lognorm += SloppyMath.logAdd(logWeights) - Math.log(N);
+				//				lognorm += SloppyMath.logAdd(logWeights) - Math.log(N);
 				lognorm += logAdd(logWeights) - Math.log(N);
-//				LogInfo.logs(SloppyMath.logAdd(logWeights)+" "+logAdd(logWeights));
+				//				LogInfo.logs(SloppyMath.logAdd(logWeights)+" "+logAdd(logWeights));
 				logWeights = new double[N]; // reset weights
 				ess = N; 
 			}
 			if (verbose)
 				LogInfo.end_track();
 			if ((kernel.isLastIter() ) && schedule != null) {
-//				lognorm += SloppyMath.logAdd(logWeights) - Math.log(N);
+				//				lognorm += SloppyMath.logAdd(logWeights) - Math.log(N);
 				lognorm += logAdd(logWeights) - Math.log(N);
 				if (resampleLastRound) {
 					// this might be useful when processing a lot of particles
@@ -367,20 +367,20 @@ public final class SMCSampler<S>
 	}
 
 
-	
+
 	public static double logAdd(double[] logV) {
-	    double max = Double.NEGATIVE_INFINITY;
-	    for (int i = 0; i < logV.length; i++) max=Math.max(logV[i], max); 
-	    if (max == Double.NEGATIVE_INFINITY) return Double.NEGATIVE_INFINITY;	    
-	    double[] result=new double[logV.length];
+		double max = Double.NEGATIVE_INFINITY;
+		for (int i = 0; i < logV.length; i++) max=Math.max(logV[i], max); 
+		if (max == Double.NEGATIVE_INFINITY) return Double.NEGATIVE_INFINITY;	    
+		double[] result=new double[logV.length];
 		for(int i = 0; i < logV.length; i++)
 			result[i] = Math.exp(logV[i]-max);	   		
 		double finalresult=0;
 		for(int i=0;i<logV.length;i++)finalresult+=result[i];
 		return  Math.log(finalresult)+max;
-	  }
-	
-	
+	}
+
+
 	private boolean hasNulls(List<S> samples)
 	{
 		for (S item : samples)

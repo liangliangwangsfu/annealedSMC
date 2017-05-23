@@ -35,7 +35,7 @@ import ev.ex.TreeGenerators;
 import ev.to.NJ;
 import fig.basic.IOUtils;
 import fig.basic.LogInfo;
-import fig.basic.NumUtils;
+
 import fig.basic.Option;
 import fig.exec.Execution;
 import fig.prob.Gamma;

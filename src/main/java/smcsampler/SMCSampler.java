@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Random;
 import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.solvers.PegasusSolver;
+
+import ev.poi.processors.TreeDistancesProcessor;
 import monaco.process.ProcessSchedule;
 import nuts.io.CSV;
 import nuts.lang.ArrayUtils;
@@ -237,7 +239,7 @@ public final class SMCSampler<S>
 	}
 
 
-	public double temperatureDifference(final double alpha,double absoluteAccuracy,double min,double max) {
+	public double temperatureDifference(final double alphaTimesPreviousESS,double absoluteAccuracy,double min,double max) {
 		final double[] logLike = new double[samples.size()];
 		for (int n = 0; n < samples.size(); n++) {
 			UnrootedTreeState urt = ((UnrootedTreeState) samples.get(n));
@@ -250,7 +252,7 @@ public final class SMCSampler<S>
 				for (int n = 0; n < samples.size(); n++) 
 					logWeightLikePriorVec[n] = logWeights[n] + logLike[n]* x;				
 				NumUtils.expNormalize(logWeightLikePriorVec);
-				return (ess(logWeightLikePriorVec)/logWeightLikePriorVec.length - alpha);
+				return (ess(logWeightLikePriorVec)/logWeightLikePriorVec.length - alphaTimesPreviousESS);
 			}
 		};
 		double result = 0;

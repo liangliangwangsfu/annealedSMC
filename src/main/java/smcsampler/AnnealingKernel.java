@@ -10,7 +10,7 @@ import java.util.Queue;
 import java.util.Random;
 import com.google.common.collect.Lists;
 import pty.UnrootedTree;
-import pty.mcmc.ProposalDistribution;
+//import pty.mcmc.ProposalDistribution;
 import pty.mcmc.UnrootedTreeState;
 import fig.basic.Option;
 import fig.basic.Pair;
@@ -110,8 +110,16 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 				final double logProposalRatio = result.getSecond();
 				double currentPrior = current.getLogPrior(), proposePrior = proposedState
 						.getLogPrior();
+//				System.out.println(currentPrior+" "+proposePrior);
+//	System.out.println(current.getUnrootedTree().branchLengths); 
+//	System.out.println(proposedState.getUnrootedTree().branchLengths);
+				
+//						double currentPrior = 0.0, proposePrior =0.0;
 				double logLikRatio = proposePrior+newtemperature* proposedState.getLogLikelihood()
 				- (currentPrior+newtemperature* current.getLogLikelihood());
+				
+//				System.out.println(currentPrior+" "+proposePrior +" "+newtemperature* proposedState.getLogLikelihood()+" "+newtemperature* current.getLogLikelihood()+" "+logLikRatio);
+				
 				final double ratio = Math.min(1,
 						Math.exp(logProposalRatio + logLikRatio));
 				if (Double.isNaN(ratio))

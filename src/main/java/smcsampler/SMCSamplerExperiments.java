@@ -22,7 +22,7 @@ import pty.io.Dataset.DatasetUtils;
 import pty.io.TreeEvaluator;
 import pty.io.TreeEvaluator.TreeMetric;
 import pty.mcmc.PhyloSampler;
-import pty.mcmc.ProposalDistribution;
+//import pty.mcmc.ProposalDistribution;
 import pty.mcmc.UnrootedTreeState;
 import pty.pmcmc.PhyloPFSchedule;
 import pty.smc.NCPriorPriorKernel;
@@ -32,6 +32,7 @@ import pty.smc.models.CTMC;
 import conifer.trees.StandardNonClockPriorDensity;
 import ev.ex.PhyloSamplerMain;
 import ev.ex.TreeGenerators;
+import ev.poi.processors.TreeDistancesProcessor;
 import ev.to.NJ;
 import fig.basic.IOUtils;
 import fig.basic.LogInfo;
@@ -190,7 +191,8 @@ public class SMCSamplerExperiments implements Runnable
 										TreeDistancesProcessor processor = m.doIt(this, iterScale, goldut, treeNameCurrentRep);									
 										time=System.currentTimeMillis()-time;
 										LogInfo.forceSilent = false;
-										UnrootedTree inferred = processor.getConsensus();										
+										UnrootedTree inferred = processor.getConsensus();		
+										System.out.println(inferred);
 										IO.writeToDisk(new File(output, "consensus_"+treeName.replaceAll("[.]msf$",".newick")), inferred.toNewick());
 										{
 											// evaluate the likelihood of the inferred tree
@@ -300,18 +302,18 @@ public class SMCSamplerExperiments implements Runnable
 
 	public static enum InferenceMethod
 	{
-		//			MCMC {
-		//			@Override
-		//			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
-		//			{
-		//				PhyloSampler._defaultPhyloSamplerOptions.rand = mainRand;
-		//				samplerMain.alignmentInputFile = instance.data;
-		//				samplerMain.st = instance.sequenceType;
-		//				PhyloSampler._defaultPhyloSamplerOptions.nIteration = (int) (iterScale * instance.nThousandIters * 1000);
-		//				samplerMain.run();
-		//				return  samplerMain.tdp;
-		//			}
-		//		},		 
+		MCMC {
+			@Override
+			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
+			{
+				PhyloSampler._defaultPhyloSamplerOptions.rand = mainRand;
+				samplerMain.alignmentInputFile = instance.data;
+				samplerMain.st = instance.sequenceType;
+				PhyloSampler._defaultPhyloSamplerOptions.nIteration = (int) (iterScale * instance.nThousandIters * 1000);
+				samplerMain.run();
+				return  samplerMain.tdp;
+			}
+		},		 
 		MB {
 			@Override
 			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance,
@@ -337,7 +339,6 @@ public class SMCSamplerExperiments implements Runnable
 				instance.logZout.println(CSV.body(treeName,"MB", "NA",
 						marginalLike));
 				instance.logZout.flush();
-
 				return tdp;
 			}
 		},
@@ -351,7 +352,6 @@ public class SMCSamplerExperiments implements Runnable
 				// PrintWriter out = IOUtils.openOutEasy(new File(new File(
 				// resultFolder), treeName + "logZEst.csv"));
 				// out.println(CSV.header("logZ", "varLogZ"));
-
 				SMCSampler<UnrootedTreeState> pc = new SMCSampler<UnrootedTreeState>();
 				// ParticleFilter<UnrootedTreeState> pc = new
 				// ParticleFilter<UnrootedTreeState>();
@@ -399,6 +399,9 @@ public class SMCSamplerExperiments implements Runnable
 				System.out.println();
 				System.out.println("logPrior: "+ncts.getLogPrior());
 				ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
+				//proposalOptions.useGlobalMultiplicativeBranchProposal=false;
+				proposalOptions.useSubtreePruningRegraftingProposal=false;
+				proposalOptions.multiplicativeBranchProposalScaling=1.2;
 				LinkedList<ProposalDistribution> proposalDistributions = new LinkedList<ProposalDistribution>();
 				// ParticleKernel<UnrootedTreeState> ppk
 				AnnealingKernel ppk = new AnnealingKernel(ncts, 1.0/instance.nAnnealing, proposalDistributions, proposalOptions);				
@@ -408,7 +411,6 @@ public class SMCSamplerExperiments implements Runnable
 				instance.logZout.println(CSV.body(treeName,methodname,instance.marginalLogLike,
 						pc.estimateNormalizer()));
 				instance.logZout.flush();
-
 				LogInfo.track("Estimation of log(Z) ");
 				LogInfo.logsForce("Estimate of log(Z): "
 						+ pc.estimateNormalizer()

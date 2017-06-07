@@ -47,11 +47,13 @@ public class MrBayes implements Runnable
 	@Option public boolean setstarttree=false;  
 	//@Option public boolean setSSinMB=false;
 	@Option public boolean fixtratioInMb=false;
+	
 
 	// the next two can also be provided directly as arguments in computeSamples
 	@Option public SequenceType st = SequenceType.RNA;
 	@Option public File alignmentInputFile = null;
 
+	private final int numberOfProposals=3; 
 	private File  workingDir = null;
 	private String starttreeString="";
 
@@ -206,11 +208,14 @@ public class MrBayes implements Runnable
 						(fixGTRGammaPara?fixGtrGammaStr:"")+
 						(setstarttree?("startvals  tau = starttree;\n"+
 								"startvals  V = starttree;\n"):"")+
-						"propset  NNI(Tau,V)$prob=25;\n"+
+						"propset NNI(Tau,V)$prob=25;\n"+
 						"propset Multiplier(V)$prob=25;\n"+
-						"propset Nodeslider(V)$prob=25;\n"+
+						"propset Nodeslider(V)$prob=0;\n"+
 						"propset TLMultiplier(V)$prob=25;\n"+
-						(setSSinMB?"ss;\n":"mcmc;\n" +								
+						"propset ExtSPR(Tau,V)$prob=0; \n"+		
+						"propset ParsSPR(Tau,V)$prob=0; \n"+
+					//	(setSSinMB?"mcmc; \n ss alpha=0.3 nsteps=10;\n":"mcmc;\n" +								
+					(setSSinMB?" ss alpha=0.3 nsteps=20;\n":"mcmc;\n" +
 								"sumt;\n")+								 
 				"end;\n");
 		out.close();

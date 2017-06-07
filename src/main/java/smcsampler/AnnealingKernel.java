@@ -110,16 +110,8 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 				final double logProposalRatio = result.getSecond();
 				double currentPrior = current.getLogPrior(), proposePrior = proposedState
 						.getLogPrior();
-//				System.out.println(currentPrior+" "+proposePrior);
-//	System.out.println(current.getUnrootedTree().branchLengths); 
-//	System.out.println(proposedState.getUnrootedTree().branchLengths);
-				
-//						double currentPrior = 0.0, proposePrior =0.0;
 				double logLikRatio = proposePrior+newtemperature* proposedState.getLogLikelihood()
 				- (currentPrior+newtemperature* current.getLogLikelihood());
-				
-//				System.out.println(currentPrior+" "+proposePrior +" "+newtemperature* proposedState.getLogLikelihood()+" "+newtemperature* current.getLogLikelihood()+" "+logLikRatio);
-				
 				final double ratio = Math.min(1,
 						Math.exp(logProposalRatio + logLikRatio));
 				if (Double.isNaN(ratio))
@@ -133,19 +125,6 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 		double logw = temperatureDifference * current.logLikelihood();
 		return Pair.makePair(proposedState, logw);    
 	}
-
-
-	//	@Override
-	//	public Pair<UnrootedTreeState, Double> next(Random rand,
-	//			UnrootedTreeState current)
-	//	{
-	//		return (Pair) _next(rand, current, false);
-	//	}
-
-	//	@Override
-	//	public int nIterationsLeft(UnrootedTreeState partialState) {	
-	//		return (nAnnealing);
-	//	}
 
 	public void setCurrentIter(int  currentIter) {	
 		this.currentIter=currentIter; 

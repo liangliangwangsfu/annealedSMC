@@ -193,7 +193,7 @@ public class MrBayes implements Runnable
 						"prset brlenspr=" + treePrior + (mbRate == 1.0  ? "" : "(" + mbRate + ")" ) + ";\n" +
 						//        (setFixCoalescentPr ? 
 						//          "prset thetapr=fixed(1.0);\n" : "") +
-						"mcmcp ngen=" + (setSSinMB?50*nMCMCIters:nMCMCIters) + ";\n" +						
+						"mcmcp ngen=" + (setSSinMB?nMCMCIters:nMCMCIters/4) + ";\n" +						
 						"mcmcp Nchains=" + nChains + ";\n" +
 //						"mcmcp seed=" + Math.abs(seed) + ";\n" +
 						"set seed=" + Math.abs(seed) + ";\n" +  

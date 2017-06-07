@@ -48,13 +48,13 @@ public final class SMCSampler<S>
 	@Option
 	public  AdaptiveScheme adaptiveScheme=AdaptiveScheme.CONSTANT; 
 	public static double essRatioThreshold = 0.5;
-	
+
 	private List<S> conditional = null; // exclude initial state
 	private double[] conditionalUnnormWeights = null;
 
 	private ProcessSchedule schedule = null;
 	private double ess = N;
-	private double cess=1.0;
+	//	private double cess=1.0;
 	private double tempDiff;
 
 	@Option
@@ -180,8 +180,6 @@ public final class SMCSampler<S>
 	private List<S> samples;
 	private double[] logWeights;
 	private double[] normalizedWeights;
-	private double[] logWeights2;
-//	private double[] incrementalLogWeights;
 	private double varLogZ = 0;
 
 	public List<S> getSamples() {
@@ -220,15 +218,18 @@ public final class SMCSampler<S>
 						logWeights[x] = Double.NEGATIVE_INFINITY;
 					} else {
 						samples.set(x, current.getFirst());
-//                         incrementalLogWeights[x] = current.getSecond();
-						logWeights[x] += current.getSecond();
-						logWeights2[x] = Math.log(normalizedWeights[x])+ current.getSecond();
+						//                         incrementalLogWeights[x] = current.getSecond();
+						logWeights[x] = Math.log(normalizedWeights[x])+ current.getSecond();						
 					}
 				}
 			}
 		});		
-//		lognorm += SloppyMath.logAdd(logWeights2);
-		lognorm += logAdd(logWeights2);
+		//		lognorm += SloppyMath.logAdd(logWeights2);
+		lognorm += logAdd(logWeights);
+		//		System.out.println(logWeights2);
+		//		System.out.println("logAdd: "+logAdd(logWeights2)+" SloppyMath.logAdd: "+SloppyMath.logAdd(logWeights2));
+		//		if(logAdd(logWeights2)-SloppyMath.logAdd(logWeights2)>1e-6)
+		//			System.out.println("------------------Different!!!");					
 		if(verbose) LogInfo.end_track();		
 	}
 	private double lognorm = 0.0;
@@ -251,9 +252,6 @@ public final class SMCSampler<S>
 		for (int n = 0; n < N; n++)
 			samples.add(initial);
 		logWeights = new double[N]; // init to zero		
-//		incrementalLogWeights = new double[N]; // init to zero
-		
-		logWeights2 = new double[N];
 		normalizedWeights = new double[N];
 		for(int i=0;i<normalizedWeights.length;i++) normalizedWeights[i]=1.0/N;
 	}
@@ -270,11 +268,11 @@ public final class SMCSampler<S>
 			public double value(double x) {
 				double[] logWeightLikePriorVec = new double[samples.size()];
 				for (int n = 0; n < samples.size(); n++) 
-//					logWeightLikePriorVec[n] = logWeights[n] + logLike[n]* x;				
+					//					logWeightLikePriorVec[n] = logWeights[n] + logLike[n]* x;				
 					logWeightLikePriorVec[n] = logLike[n]* x;
 				NumUtils.expNormalize(logWeightLikePriorVec);
 				//return (ess(logWeightLikePriorVec)/logWeightLikePriorVec.length - alphaTimesPreviousESS);
-//				System.out.println(x+" "+cess(normalizedWeights,logWeightLikePriorVec)+" "+alphaTimesPreviousESS);
+				//				System.out.println(x+" "+cess(normalizedWeights,logWeightLikePriorVec)+" "+alphaTimesPreviousESS);
 				return (cess(normalizedWeights,logWeightLikePriorVec) - alphaTimesPreviousESS);
 			}
 		};
@@ -285,7 +283,7 @@ public final class SMCSampler<S>
 			PegasusSolver solver = new PegasusSolver(relativeAccuracy,
 					absoluteAccuracy);
 			result = solver.solve(maxEval, (UnivariateFunction) f, min, max);
-//			LogInfo.logsForce("Solver successful!");
+			//			LogInfo.logsForce("Solver successful!");
 		} catch (RuntimeException e) {
 			LogInfo.logsForce("Solver Fail!");
 			result = -1;
@@ -303,12 +301,7 @@ public final class SMCSampler<S>
 	 */
 	public void sample(final SMCSamplerKernel<S> kernel,
 			final TreeDistancesProcessor tdp) {
-		//			final ParticleProcessor<S> tdp){
 		init(kernel);
-		//        int T = kernel.nIterationsLeft(kernel.getInitial());
-		//		int T = kernel.nIterationsLeft(kernel.getInitial()); //iter 0 is for initialization
-		//		if (isConditional() && conditional.size() != T)
-		//			throw new RuntimeException();
 		if(smcSamplerOut!=null)smcSamplerOut.println(CSV.header("t", "ESS", "tempDiff", "temp"));
 		double alpha0 = alpha;
 		//	for (int t = 0; t < T && !isLastIter; t++) {
@@ -319,10 +312,7 @@ public final class SMCSampler<S>
 				tempDiff = 0;
 				alpha0 =adaptiveScheme.alpha(alpha0, t); 
 				if (t > 0) {						
-					tempDiff = temperatureDifference(
-//							alpha0 * cess, 1.0e-3, 0, 0.2);						
-							alpha, 1.0e-6, 0, 0.2);
-//					System.out.println(tempDiff);
+					tempDiff = temperatureDifference(alpha, 1.0e-6, 0, 0.2);
 					if(tempDiff == -1) tempDiff = kernel.getDefaultTemperatureDifference();
 				}
 			} else {
@@ -334,19 +324,18 @@ public final class SMCSampler<S>
 			propagateAndComputeWeights(kernel, t);		
 			normalizedWeights = logWeights.clone();
 			NumUtils.expNormalize(normalizedWeights);
-//			NumUtils.expNormalize(incrementalLogWeights);
 			if (verbose)
 				LogInfo.logs("LargestNormalizedWeights="
 						+ ArrayUtils.max(normalizedWeights));
 			ess = ess(normalizedWeights);			
-//			cess = cess(normalizedWeights, incrementalLogWeights);
-//			System.out.println(cess);
+			//			cess = cess(normalizedWeights, incrementalLogWeights);
+			//			System.out.println(cess);
 			if(smcSamplerOut!=null)
 			{
 				smcSamplerOut.println(CSV.body(t, ess,kernel.getTemperatureDifference(), kernel.getTemperature()));
 				smcSamplerOut.flush();
 			}
-			
+
 			if (verbose)
 				LogInfo.logs("RelativeESS=" + ess
 						/ normalizedWeights.length);
@@ -355,16 +344,12 @@ public final class SMCSampler<S>
 					&& (hasNulls(samples) || resamplingStrategy
 							.needResample(normalizedWeights))) {
 				samples = resample(samples, normalizedWeights, rand);
-//				lognorm += logAdd(logWeights) - Math.log(N);
-				logWeights = new double[N]; // reset weights
 				ess = N;
 				for(int i=0;i<normalizedWeights.length;i++) normalizedWeights[i]=1.0/N;
 			}
 			if (verbose)
 				LogInfo.end_track();
 			if ((kernel.isLastIter() ) && schedule != null) {
-				//				lognorm += SloppyMath.logAdd(logWeights) - Math.log(N);
-//				lognorm += logAdd(logWeights) - Math.log(N);
 				if (resampleLastRound) {
 					// this might be useful when processing a lot of particles
 					// is expensive
@@ -390,7 +375,7 @@ public final class SMCSampler<S>
 			//			if (schedule != null)
 			//				schedule.monitor(new ProcessScheduleContext(t, t == T - 1,
 			//				ResampleStatus.NA));
-			 
+
 			t++;
 		}
 		setUnconditional();
@@ -403,11 +388,8 @@ public final class SMCSampler<S>
 		double max = Double.NEGATIVE_INFINITY;
 		for (int i = 0; i < logV.length; i++) max=Math.max(logV[i], max); 
 		if (max == Double.NEGATIVE_INFINITY) return Double.NEGATIVE_INFINITY;	    
-		double[] result=new double[logV.length];
-		for(int i = 0; i < logV.length; i++)
-			result[i] = Math.exp(logV[i]-max);	   		
 		double finalresult=0;
-		for(int i=0;i<logV.length;i++)finalresult+=result[i];
+		for(int i=0;i<logV.length;i++)finalresult+=Math.exp(logV[i]-max);
 		return  Math.log(finalresult)+max;
 	}
 

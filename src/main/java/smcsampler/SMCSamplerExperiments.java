@@ -401,6 +401,9 @@ public class SMCSamplerExperiments implements Runnable
 				ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
 				//proposalOptions.useGlobalMultiplicativeBranchProposal=false;
 				proposalOptions.useSubtreePruningRegraftingProposal=false;
+				proposalOptions.useStochasticNearestNeighborInterchangeProposal=true;
+				proposalOptions.useStochasticNearestNeighborInterchangeProposalWithNbrsResampling=false;
+				
 				proposalOptions.multiplicativeBranchProposalScaling=1.2;
 				LinkedList<ProposalDistribution> proposalDistributions = new LinkedList<ProposalDistribution>();
 				// ParticleKernel<UnrootedTreeState> ppk

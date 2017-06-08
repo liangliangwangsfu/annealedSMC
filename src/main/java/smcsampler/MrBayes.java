@@ -224,7 +224,7 @@ public class MrBayes implements Runnable
 						"propset TLMultiplier(V)$prob=25;\n"+
 						"propset ExtSPR(Tau,V)$prob=0; \n"+		
 						"propset ParsSPR(Tau,V)$prob=0; \n"+
-						"propset ExtTBR(Tau,V)$prob=0; \n"+														
+						//"propset ExtTBR(Tau,V)$prob=0; \n"+														
 					(setSSinMB?" ss alpha=0.3 nsteps=50;\n":"mcmc;\n" +
 								"sumt burnin="+((int)(ngenNum*0.15))+";\n")+								 
 				"end;\n");

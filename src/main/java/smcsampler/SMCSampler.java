@@ -49,9 +49,6 @@ public final class SMCSampler<S>
 	public  AdaptiveScheme adaptiveScheme=AdaptiveScheme.CONSTANT; 
 	public static double essRatioThreshold = 0.5;
 
-	private List<S> conditional = null; // exclude initial state
-	private double[] conditionalUnnormWeights = null;
-
 	private ProcessSchedule schedule = null;
 	private double ess = N;
 	//	private double cess=1.0;
@@ -76,28 +73,8 @@ public final class SMCSampler<S>
 		this.schedule = schedule;
 	}
 
-	public void setConditional(List<S> conditional,
-			double[] conditionalUnnormWeights)
-	{
-		// no I think it's ok
-		// if (true)
-		// throw new
-		// RuntimeException("seems like conditional not used in resampling step?");
-		if (conditional.size() != conditionalUnnormWeights.length)
-			throw new RuntimeException();
-		this.conditional = conditional;
-		this.conditionalUnnormWeights = conditionalUnnormWeights;
-	}
 
-	public void setUnconditional() {
-		this.conditional = null;
-		this.conditionalUnnormWeights = null;
-	}
-
-	public boolean isConditional() {
-		return conditional != null;
-	}
-
+	
 	public static enum ResamplingStrategy {
 		ALWAYS {
 			@Override
@@ -160,7 +137,7 @@ public final class SMCSampler<S>
 			throw new RuntimeException("normalizedPreviousWs and ws should have the same length!");
 		for (int i=0;i<ws.length;i++){
 			sumOfSqr += normalizedPreviousWs[i]*ws[i] * ws[i];
-			sum+=normalizedPreviousWs[i]*ws[i];
+			sum += normalizedPreviousWs[i]*ws[i];
 		}		 
 		return sum*sum/sumOfSqr;
 	}
@@ -207,29 +184,18 @@ public final class SMCSampler<S>
 					if (verbose)
 						LogInfo.logs("Particle " + (x + 1) + "/" + N);
 				Random rand = new Random(seeds[x]);
-				if (x == 0 && isConditional()) {
-					samples.set(x, conditional.get(t));
-					logWeights[x] = conditionalUnnormWeights[t];
+				final Pair<S, Double> current = kernel.next(rand,
+						samples.get(x));
+				if (current == null) {
+					samples.set(x, null);
+					logWeights[x] = Double.NEGATIVE_INFINITY;
 				} else {
-					final Pair<S, Double> current = kernel.next(rand,
-							samples.get(x));
-					if (current == null) {
-						samples.set(x, null);
-						logWeights[x] = Double.NEGATIVE_INFINITY;
-					} else {
-						samples.set(x, current.getFirst());
-						//                         incrementalLogWeights[x] = current.getSecond();
-						logWeights[x] = Math.log(normalizedWeights[x])+ current.getSecond();						
-					}
+					samples.set(x, current.getFirst());
+					logWeights[x] = Math.log(normalizedWeights[x])+ current.getSecond();						
 				}
 			}
 		});		
-		//		lognorm += SloppyMath.logAdd(logWeights2);
 		lognorm += logAdd(logWeights);
-		//		System.out.println(logWeights2);
-		//		System.out.println("logAdd: "+logAdd(logWeights2)+" SloppyMath.logAdd: "+SloppyMath.logAdd(logWeights2));
-		//		if(logAdd(logWeights2)-SloppyMath.logAdd(logWeights2)>1e-6)
-		//			System.out.println("------------------Different!!!");					
 		if(verbose) LogInfo.end_track();		
 	}
 	private double lognorm = 0.0;
@@ -312,7 +278,7 @@ public final class SMCSampler<S>
 				tempDiff = 0;
 				alpha0 =adaptiveScheme.alpha(alpha0, t); 
 				if (t > 0) {						
-					tempDiff = temperatureDifference(alpha, 1.0e-6, 0, 0.2);
+					tempDiff = temperatureDifference(alpha, 1.0e-9, 0, 0.2);
 					if(tempDiff == -1) tempDiff = kernel.getDefaultTemperatureDifference();
 				}
 			} else {
@@ -377,8 +343,7 @@ public final class SMCSampler<S>
 			//				ResampleStatus.NA));
 
 			t++;
-		}
-		setUnconditional();
+		}	
 		if(smcSamplerOut!=null)smcSamplerOut.close();
 	}
 

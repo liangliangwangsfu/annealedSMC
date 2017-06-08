@@ -1,5 +1,6 @@
 package smcsampler;
 
+import static nuts.io.IO.writeToDisk;
 import static nuts.util.CollUtils.list;
 import static nuts.util.CollUtils.union;
 import java.io.File;
@@ -195,11 +196,7 @@ public class SMCSamplerExperiments implements Runnable
 										System.out.println(inferred);
 										IO.writeToDisk(new File(output, "consensus_"+treeName.replaceAll("[.]msf$",".newick")), inferred.toNewick());
 										{
-											// evaluate the likelihood of the inferred tree
-											//											dataset = DatasetUtils.fromAlignment(this.data, sequenceType);
-											//											ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites());
 											UnrootedTreeState ncs = UnrootedTreeState.initFastState(inferred, dataset, ctmc);
-
 											if (m == InferenceMethod.ANNEALING)
 												out.println(CSV.body(m, adaptiveTempDiff, adaptiveType,
 														this.nAnnealing, iterScale, j,
@@ -323,6 +320,14 @@ public class SMCSamplerExperiments implements Runnable
 				mb.nChains = 1;
 				mb.seed = mainRand.nextInt();
 				mb.nMCMCIters = (int) (iterScale * instance.nThousandIters * 1000);
+				UnrootedTree initTree = initTree(new Random(3), instance.generator.nTaxa);
+				String outName="startTree.newick";
+				writeToDisk(new File(instance.output, outName), initTree.toNewick());
+				String cmdStr="cat " +outName + "  | sed 's/internal_[0-9]*//g' > " + "start-tree.newick";                    
+//				LogInfo.logs(cmdStr);
+                IO.call("bash -s",cmdStr,instance.output);          
+				mb.setStartTree(IO.f2s(new File(instance.output,"start-tree.newick")));
+				if(MSAParser.parseMSA(instance.data).nTaxa()<4) mb.useNNI=false;
 				if(mb.fixGTRGammaPara)
 				{
 					mb.alpha=instance.generator.alpha;
@@ -377,34 +382,29 @@ public class SMCSamplerExperiments implements Runnable
 				pc.smcSamplerOut = IOUtils.openOutEasy(new File(
 						instance.output, filename));
 				List<Taxon> leaves = MSAParser.parseMSA(instance.data).taxa();
-				// RootedTree initTree = TreeGenerators.sampleCoalescent(
-				// instance.mainRand, leaves, false);
-				RootedTree initTree = TreeGenerators.sampleExpNonclock(
-						instance.mainRand, leaves.size(), 10.0);
-				// .sampleCoalescent(
-				// instance.mainRand, leaves, false);
+				//				UnrootedTree initTree = UnrootedTree.fromRooted(TreeGenerators.sampleExpNonclock(
+				//						instance.mainRand, leaves.size(), 10.0));
+				//				initTree(instance.mainRand, leaves.size());
+				UnrootedTree initTree = initTree(new Random(3), leaves.size());
 				Gamma exponentialPrior = Gamma.exponential(10.0);
-				// StandardNonClockPriorDensity priorDensity = new
-				// StandardNonClockPriorDensity(
-				// Distrib < Double > branchDistribution);
 				StandardNonClockPriorDensity priorDensity = new StandardNonClockPriorDensity(
 						exponentialPrior);
 				Dataset dataset = DatasetUtils.fromAlignment(instance.data, instance.sequenceType);		        
 				CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites());
-				UnrootedTreeState ncts = UnrootedTreeState.initFastState(
-						UnrootedTree.fromRooted(initTree), dataset, ctmc,
-						priorDensity);			
+				UnrootedTreeState ncts = UnrootedTreeState.initFastState(initTree, dataset, ctmc,priorDensity);			
 				if(dataset.observations().size()<=5)
 					instance.marginalLogLike=numericalIntegratedMarginalLikelihood(instance.mainRand, ncts, 10.0, instance.nNumericalIntegration);
-				System.out.println();
-				System.out.println("logPrior: "+ncts.getLogPrior());
+
+				LogInfo.track("log prior and loglikelihood of the initial tree: ");
+				LogInfo.logsForce(ncts.getLogPrior()+" "+ncts.getLogLikelihood());
+				LogInfo.end_track();
+
 				ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
 				//proposalOptions.useGlobalMultiplicativeBranchProposal=false;
 				proposalOptions.useSubtreePruningRegraftingProposal=false;
 				proposalOptions.useStochasticNearestNeighborInterchangeProposal=true;
 				proposalOptions.useStochasticNearestNeighborInterchangeProposalWithNbrsResampling=false;
-				
-				proposalOptions.multiplicativeBranchProposalScaling=1.2;
+				proposalOptions.multiplicativeBranchProposalScaling=2.0;
 				LinkedList<ProposalDistribution> proposalDistributions = new LinkedList<ProposalDistribution>();
 				// ParticleKernel<UnrootedTreeState> ppk
 				AnnealingKernel ppk = new AnnealingKernel(ncts, 1.0/instance.nAnnealing, proposalDistributions, proposalOptions);				
@@ -425,6 +425,15 @@ public class SMCSamplerExperiments implements Runnable
 			}
 		};
 		abstract  TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut, String treeName);
+	}
+
+
+
+
+
+	public static  UnrootedTree initTree(Random rand, int nLeaves){	
+		return UnrootedTree.fromRooted(TreeGenerators.sampleExpNonclock(
+				rand, nLeaves, 10.0));						
 	}
 
 

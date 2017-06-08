@@ -5,10 +5,10 @@ import java.util.Random;
 import bayonet.math.NumericalUtils;
 import blang.inits.Arg;
 import blang.inits.DefaultValue;
-import smcsampler.algo.FixedTemperatureSchedule;
 import smcsampler.algo.Particle;
-import smcsampler.algo.Proposal;
-import smcsampler.algo.TemperatureSchedule;
+import smcsampler.algo.schedules.FixedTemperatureSchedule;
+import smcsampler.algo.schedules.TemperatureSchedule;
+import smcsampler.algo.Kernels;
 
 public class SteppingStone<P extends Particle>
 {
@@ -25,7 +25,7 @@ public class SteppingStone<P extends Particle>
   public TemperatureSchedule temperatureSchedule = new FixedTemperatureSchedule();
   
   
-  final Proposal<P> proposal;
+  final Kernels<P> proposal;
   
   public double estimateLogZ(Random random)
   {
@@ -40,14 +40,14 @@ public class SteppingStone<P extends Particle>
       
       if (isInit)
         for (int i = 0; i < nBurnInPerTemperature; i++)
-          currentState = proposal.propose(random, currentState, temperature);
+          currentState = proposal.sampleNext(random, currentState, temperature);
       else if (!initFromPrevious)
         currentState = proposal.sampleInitial(random);
       for (int i = 0; i < nMCMCPerTemperature; i++)
       {
         currentState = isInit ? 
           proposal.sampleInitial(random) :
-          proposal.propose(random, currentState, temperature);
+          proposal.sampleNext(random, currentState, temperature);
         double logLikelihood = currentState.incrementalLogWeight(temperature, nextTemperature);
         logSumAnnealedLikelihoods = NumericalUtils.logAdd(logSumAnnealedLikelihoods, logLikelihood);
       }
@@ -57,7 +57,7 @@ public class SteppingStone<P extends Particle>
     return sum;
   }
 
-  public SteppingStone(Proposal<P> proposal)
+  public SteppingStone(Kernels<P> proposal)
   {
     this.proposal = proposal;
   }

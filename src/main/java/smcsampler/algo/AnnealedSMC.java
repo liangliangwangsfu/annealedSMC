@@ -8,6 +8,8 @@ import bayonet.smc.ResamplingScheme;
 import blang.inits.Arg;
 import blang.inits.DefaultValue;
 import briefj.BriefParallel;
+import smcsampler.algo.schedules.AdaptiveTemperatureSchedule;
+import smcsampler.algo.schedules.TemperatureSchedule;
 
 public class AnnealedSMC<P extends Particle>
 {
@@ -26,7 +28,7 @@ public class AnnealedSMC<P extends Particle>
   @Arg   @DefaultValue("1")
   public int nThreads = 1;
   
-  final Proposal<P> proposal;
+  final Kernels<P> proposal;
   
   /**
    * @return The particle population at the last step
@@ -78,7 +80,7 @@ public class AnnealedSMC<P extends Particle>
     {
       P proposed = isInitial ?
         proposal.sampleInitial(randoms[particleIndex]) :
-        proposal.propose(randoms[particleIndex], currentPopulation.particles.get(particleIndex), nextTemperature);
+        proposal.sampleNext(randoms[particleIndex], currentPopulation.particles.get(particleIndex), nextTemperature);
       logWeights[particleIndex] = 
         (isInitial ? 0.0 : proposed.incrementalLogWeight(temperature, nextTemperature) + Math.log(currentPopulation.getNormalizedWeight(particleIndex)));
       particles[particleIndex] = proposed;
@@ -95,7 +97,7 @@ public class AnnealedSMC<P extends Particle>
     return propose(randoms, null, Double.NaN, Double.NaN);
   }
   
-  public AnnealedSMC(Proposal<P> proposal)
+  public AnnealedSMC(Kernels<P> proposal)
   {
     this.proposal = proposal;
   }

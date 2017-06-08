@@ -1,8 +1,9 @@
-package smcsampler.algo;
+package smcsampler.algo.schedules;
 
 import bayonet.smc.ParticlePopulation;
 import blang.inits.Arg;
 import blang.inits.DefaultValue;
+import smcsampler.algo.Particle;
 
 public class FixedTemperatureSchedule implements TemperatureSchedule
 {

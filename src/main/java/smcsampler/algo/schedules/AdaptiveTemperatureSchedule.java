@@ -1,4 +1,4 @@
-package smcsampler.algo;
+package smcsampler.algo.schedules;
 
 import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.solvers.PegasusSolver;
@@ -6,6 +6,8 @@ import org.apache.commons.math3.analysis.solvers.PegasusSolver;
 import bayonet.smc.ParticlePopulation;
 import blang.inits.Arg;
 import blang.inits.DefaultValue;
+import smcsampler.algo.Particle;
+import smcsampler.algo.SMCStaticUtils;
 
 public class AdaptiveTemperatureSchedule implements TemperatureSchedule
 {

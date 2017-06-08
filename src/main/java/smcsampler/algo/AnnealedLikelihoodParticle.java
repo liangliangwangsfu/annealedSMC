@@ -1,5 +1,8 @@
 package smcsampler.algo;
 
+/**
+ * Sequences of distribution of the form prior x like^temperature
+ */
 public class AnnealedLikelihoodParticle<P> implements Particle
 {
   public final double logLikelihood;

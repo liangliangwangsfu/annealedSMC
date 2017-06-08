@@ -14,8 +14,8 @@ import bayonet.marginal.DiscreteFactorGraph;
 import bayonet.marginal.algo.SumProduct;
 import smcsampler.algo.AnnealedLikelihoodParticle;
 import smcsampler.algo.AnnealedSMC;
-import smcsampler.algo.FixedTemperatureSchedule;
-import smcsampler.algo.Proposal;
+import smcsampler.algo.Kernels;
+import smcsampler.algo.schedules.FixedTemperatureSchedule;
 
 public class HMMTest
 {
@@ -81,7 +81,7 @@ public class HMMTest
     return sum;
   }
   
-  class HMMProposal implements Proposal<AnnealedLikelihoodParticle<List<Integer>>>
+  class HMMProposal implements Kernels<AnnealedLikelihoodParticle<List<Integer>>>
   {
     @Override
     public AnnealedLikelihoodParticle<List<Integer>> sampleInitial(Random random)
@@ -91,7 +91,7 @@ public class HMMTest
     }
 
     @Override
-    public AnnealedLikelihoodParticle<List<Integer>> propose(Random random,
+    public AnnealedLikelihoodParticle<List<Integer>> sampleNext(Random random,
         AnnealedLikelihoodParticle<List<Integer>> current, double temperature)
     {
       // pick one state at random

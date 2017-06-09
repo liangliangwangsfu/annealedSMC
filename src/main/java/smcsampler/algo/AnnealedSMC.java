@@ -3,6 +3,7 @@ package smcsampler.algo;
 import java.util.Arrays;
 import java.util.Random;
 
+import baselines.MeasureApproximation;
 import bayonet.smc.ParticlePopulation;
 import bayonet.smc.ResamplingScheme;
 import blang.inits.Arg;
@@ -11,7 +12,7 @@ import briefj.BriefParallel;
 import smcsampler.algo.schedules.AdaptiveTemperatureSchedule;
 import smcsampler.algo.schedules.TemperatureSchedule;
 
-public class AnnealedSMC<P extends Particle>
+public class AnnealedSMC<P extends Particle> implements MeasureApproximation<P> 
 {
   @Arg                    @DefaultValue("0.5")
   public double resamplingESSThreshold = 0.5;
@@ -28,12 +29,15 @@ public class AnnealedSMC<P extends Particle>
   @Arg   @DefaultValue("1")
   public int nThreads = 1;
   
-  final Kernels<P> proposal;
+  @Arg               @DefaultValue("1")
+  public Random random = new Random(1);
+  
+  Kernels<P> kernels;
   
   /**
    * @return The particle population at the last step
    */
-  public ParticlePopulation<P> sample(Random random)
+  public ParticlePopulation<P> getApproximation()
   {
     Random [] parallelRandomStreams = SMCStaticUtils.parallelRandomStreams(random, nParticles);
     ParticlePopulation<P> population = initialize(parallelRandomStreams);
@@ -54,14 +58,14 @@ public class AnnealedSMC<P extends Particle>
   private ParticlePopulation<P> resample(Random random, ParticlePopulation<P> population)
   {
     population = population.resample(random, resamplingScheme);
-    if (proposal.inPlace())
+    if (kernels.inPlace())
     {
       P previous = null;
       for (int i = 0; i < nParticles; i++)
       {
         P current = population.particles.get(i);
         if (current == previous)
-          population.particles.set(i, proposal.deepCopy(current)); 
+          population.particles.set(i, kernels.deepCopy(current)); 
         previous = current;
       }
     }
@@ -79,10 +83,10 @@ public class AnnealedSMC<P extends Particle>
     BriefParallel.process(nParticles, nThreads, particleIndex ->
     {
       P proposed = isInitial ?
-        proposal.sampleInitial(randoms[particleIndex]) :
-        proposal.sampleNext(randoms[particleIndex], currentPopulation.particles.get(particleIndex), nextTemperature);
+        kernels.sampleInitial(randoms[particleIndex]) :
+        kernels.sampleNext(randoms[particleIndex], currentPopulation.particles.get(particleIndex), nextTemperature);
       logWeights[particleIndex] = 
-        (isInitial ? 0.0 : proposed.incrementalLogWeight(temperature, nextTemperature) + Math.log(currentPopulation.getNormalizedWeight(particleIndex)));
+        (isInitial ? 0.0 : proposed.logDensityRatio(temperature, nextTemperature) + Math.log(currentPopulation.getNormalizedWeight(particleIndex)));
       particles[particleIndex] = proposed;
     });
     
@@ -96,9 +100,10 @@ public class AnnealedSMC<P extends Particle>
   {
     return propose(randoms, null, Double.NaN, Double.NaN);
   }
-  
-  public AnnealedSMC(Kernels<P> proposal)
+
+  @Override
+  public void setKernels(Kernels<P> kernels)
   {
-    this.proposal = proposal;
+    this.kernels = kernels;
   }
 }

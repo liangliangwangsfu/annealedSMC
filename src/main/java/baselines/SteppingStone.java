@@ -24,10 +24,12 @@ public class SteppingStone<P extends Particle>
   @Arg                                  @DefaultValue("FixedTemperatureSchedule")
   public TemperatureSchedule temperatureSchedule = new FixedTemperatureSchedule();
   
+  @Arg               @DefaultValue("1")
+  public Random random = new Random(1);
   
   final Kernels<P> proposal;
   
-  public double estimateLogZ(Random random)
+  public double estimateLogZ()
   {
     double sum = 0.0;
     double temperature = 0.0;
@@ -48,7 +50,7 @@ public class SteppingStone<P extends Particle>
         currentState = isInit ? 
           proposal.sampleInitial(random) :
           proposal.sampleNext(random, currentState, temperature);
-        double logLikelihood = currentState.incrementalLogWeight(temperature, nextTemperature);
+        double logLikelihood = currentState.logDensityRatio(temperature, nextTemperature);
         logSumAnnealedLikelihoods = NumericalUtils.logAdd(logSumAnnealedLikelihoods, logLikelihood);
       }
       sum += logSumAnnealedLikelihoods - Math.log(nMCMCPerTemperature);

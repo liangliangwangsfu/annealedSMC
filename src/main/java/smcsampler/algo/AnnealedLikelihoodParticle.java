@@ -15,7 +15,7 @@ public class AnnealedLikelihoodParticle<P> implements Particle
   }
 
   @Override
-  public double incrementalLogWeight(double temperature, double nextTemperature)
+  public double logDensityRatio(double temperature, double nextTemperature)
   {
     return (nextTemperature - temperature) * logLikelihood;
   }

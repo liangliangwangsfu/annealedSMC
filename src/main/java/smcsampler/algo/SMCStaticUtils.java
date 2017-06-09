@@ -28,7 +28,7 @@ public class SMCStaticUtils
   {
     double [] result = new double[population.nParticles()];
     for (int i = 0; i < population.nParticles(); i++)
-      result[i] = population.particles.get(i).incrementalLogWeight(temperature, nextTemperature);
+      result[i] = population.particles.get(i).logDensityRatio(temperature, nextTemperature);
     Multinomial.expNormalize(result);
     return result;
   }

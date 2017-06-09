@@ -5,6 +5,7 @@ import static nuts.util.CollUtils.map;
 
 import java.io.File;
 import java.io.PrintWriter;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -47,7 +48,7 @@ public class MrBayes implements Runnable
 	@Option public boolean setstarttree=false;  
 	//@Option public boolean setSSinMB=false;
 	@Option public boolean fixtratioInMb=false;
-	
+	@Option public boolean useNNI=true; 	
 
 	// the next two can also be provided directly as arguments in computeSamples
 	@Option public SequenceType st = SequenceType.RNA;
@@ -121,8 +122,17 @@ public class MrBayes implements Runnable
 	public static void processMrBayesTrees(File file, RootedTreeProcessor rtp)
 	{
 		Map<String,String> translation = translation(file);
+		Iterator<String> iter=i(file).iterator();
+		int totalTreeNum=0;
+		while(iter.hasNext())
+		{  
+			iter.next();
+			totalTreeNum++;
+		}
+        final int burnin=(int) (totalTreeNum*0.25);
+		int i=0;
 		for (String line : i(file))
-			if (line.matches("^\\s*tree rep.*") || line.matches("^\\s*tree gen.*")  )			
+			if (line.matches("^\\s*tree rep.*") || line.matches("^\\s*tree gen.*")  && i++>burnin)			
 				rtp.process(parseTree(line,translation));
 	}
 	private static Map<String, String> translation(File file)
@@ -186,7 +196,7 @@ public class MrBayes implements Runnable
 			String cmdStr="cat start.tree | sed 's/internal_[0-9]*_[0-9]*//g'"+  " > mrbayes.cmd";
 			IO.call("bash -s",cmdStr,workingDir);      
 		}
-
+		final int ngenNum = nMCMCIters; //(setSSinMB?nMCMCIters:nMCMCIters/4);
 		PrintWriter out = IOUtils.openOutAppendEasy(mrBayesCmd);
 		out.append(
 				"begin mrbayes;\n" +
@@ -195,7 +205,7 @@ public class MrBayes implements Runnable
 						"prset brlenspr=" + treePrior + (mbRate == 1.0  ? "" : "(" + mbRate + ")" ) + ";\n" +
 						//        (setFixCoalescentPr ? 
 						//          "prset thetapr=fixed(1.0);\n" : "") +
-						"mcmcp ngen=" + (setSSinMB?nMCMCIters:nMCMCIters/4) + ";\n" +						
+						"mcmcp ngen=" +  ngenNum + ";\n" +						
 						"mcmcp Nchains=" + nChains + ";\n" +
 //						"mcmcp seed=" + Math.abs(seed) + ";\n" +
 						"set seed=" + Math.abs(seed) + ";\n" +  
@@ -208,15 +218,15 @@ public class MrBayes implements Runnable
 						(fixGTRGammaPara?fixGtrGammaStr:"")+
 						(setstarttree?("startvals  tau = starttree;\n"+
 								"startvals  V = starttree;\n"):"")+
-						"propset NNI(Tau,V)$prob=25;\n"+
+						"propset NNI(Tau,V)$prob="+(useNNI?25:0)+";\n"+
 						"propset Multiplier(V)$prob=25;\n"+
 						"propset Nodeslider(V)$prob=0;\n"+
 						"propset TLMultiplier(V)$prob=25;\n"+
 						"propset ExtSPR(Tau,V)$prob=0; \n"+		
 						"propset ParsSPR(Tau,V)$prob=0; \n"+
-					//	(setSSinMB?"mcmc; \n ss alpha=0.3 nsteps=10;\n":"mcmc;\n" +								
-					(setSSinMB?" ss alpha=0.3 nsteps=20;\n":"mcmc;\n" +
-								"sumt;\n")+								 
+						//"propset ExtTBR(Tau,V)$prob=0; \n"+														
+					(setSSinMB?" ss alpha=0.3 nsteps=50;\n":"mcmc;\n" +
+								"sumt burnin="+((int)(ngenNum*0.15))+";\n")+								 
 				"end;\n");
 		out.close();
 	}

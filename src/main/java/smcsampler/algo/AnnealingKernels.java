@@ -2,7 +2,7 @@ package smcsampler.algo;
 
 import java.util.Random;
 
-public interface Kernels<P extends Particle>
+public interface AnnealingKernels<P extends AnnealedParticle>
 {
   /**
    * These are assumed to be exact samples. E.g. prior or a unique pseudo-state.

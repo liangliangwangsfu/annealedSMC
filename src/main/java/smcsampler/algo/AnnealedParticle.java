@@ -1,6 +1,6 @@
 package smcsampler.algo;
 
-public interface Particle
+public interface AnnealedParticle
 {
   /**
    * pi_nextTemperature / pi_temperature (this)

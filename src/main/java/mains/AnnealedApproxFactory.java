@@ -3,41 +3,27 @@ package mains;
 import java.io.Writer;
 import java.util.Optional;
 
-import baselines.MeasureApproximation;
+import baselines.AnnealingTypeAlgorithm;
 import bayonet.smc.ParticlePopulation;
 import blang.inits.Arg;
 import blang.inits.DefaultValue;
 import blang.inits.experiments.Experiment;
 import briefj.BriefIO;
 import smcsampler.algo.AnnealedSMC;
-import smcsampler.algo.Particle;
+import smcsampler.algo.AnnealedParticle;
 
 
-public class MeasureApproxFactory<P extends Particle> extends Experiment
+public class AnnealedApproxFactory<P extends AnnealedParticle> extends Experiment
 {
   @Arg                                         @DefaultValue("AnnealedSMC")
-  public MeasureApproximation<P> approximationAlgorithm = new AnnealedSMC<>();
+  public AnnealingTypeAlgorithm<P> approximationAlgorithm = new AnnealedSMC<>();
   
   @SuppressWarnings("rawtypes")
-  @Arg         @DefaultValue("HMM")
+  @Arg      @DefaultValue("HMM")
   public Model model = new HMM();
   
-  @Arg                 @DefaultValue("false")
+  @Arg                @DefaultValue("false")
   public boolean forbidOutputFiles = false;
-  
-  static class EvaluationContext
-  {
-    final Writer out;
-    public EvaluationContext(Writer out)
-    {
-      this.out = out;
-      BriefIO.println(out, "statistic,approximation,truth");
-    }
-    public void register(String name, double approximation, Optional<Double> truth)
-    {
-      BriefIO.println(out, name + "," + approximation + "," + (truth.isPresent() ? truth.get() : "NA"));
-    }
-  }
   
   @Override
   public void run()
@@ -59,6 +45,20 @@ public class MeasureApproxFactory<P extends Particle> extends Experiment
       model.evaluate(approximation, new EvaluationContext(results.getAutoClosedBufferedWriter("results.csv")));
     }
     return approximation;
+  }
+  
+  static class EvaluationContext
+  {
+    final Writer out;
+    public EvaluationContext(Writer out)
+    {
+      this.out = out;
+      BriefIO.println(out, "statistic,approximation,truth");
+    }
+    public void register(String name, double approximation, Optional<Double> truth)
+    {
+      BriefIO.println(out, name + "," + approximation + "," + (truth.isPresent() ? truth.get() : "NA"));
+    }
   }
   
   public static void main(String [] args)

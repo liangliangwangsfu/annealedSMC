@@ -8,12 +8,12 @@ import bayonet.math.NumericalUtils;
 import bayonet.smc.ParticlePopulation;
 import blang.inits.Arg;
 import blang.inits.DefaultValue;
-import smcsampler.algo.Particle;
+import smcsampler.algo.AnnealedParticle;
 import smcsampler.algo.schedules.FixedTemperatureSchedule;
 import smcsampler.algo.schedules.TemperatureSchedule;
-import smcsampler.algo.Kernels;
+import smcsampler.algo.AnnealingKernels;
 
-public class SteppingStone<P extends Particle> implements MeasureApproximation<P>
+public class SteppingStone<P extends AnnealedParticle> implements AnnealingTypeAlgorithm<P>
 {
   @Arg              @DefaultValue("1_000")
   public int nMCMCPerTemperature = 1_000;
@@ -30,7 +30,7 @@ public class SteppingStone<P extends Particle> implements MeasureApproximation<P
   @Arg               @DefaultValue("1")
   public Random random = new Random(1);
   
-  Kernels<P> kernels;
+  AnnealingKernels<P> kernels;
   
   @Override
   public ParticlePopulation<P> getApproximation()
@@ -71,7 +71,7 @@ public class SteppingStone<P extends Particle> implements MeasureApproximation<P
   }
 
   @Override
-  public void setKernels(Kernels<P> kernels)
+  public void setKernels(AnnealingKernels<P> kernels)
   {
     this.kernels = kernels;
   }

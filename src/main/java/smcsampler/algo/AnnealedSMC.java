@@ -3,7 +3,7 @@ package smcsampler.algo;
 import java.util.Arrays;
 import java.util.Random;
 
-import baselines.MeasureApproximation;
+import baselines.AnnealingTypeAlgorithm;
 import bayonet.smc.ParticlePopulation;
 import bayonet.smc.ResamplingScheme;
 import blang.inits.Arg;
@@ -12,7 +12,7 @@ import briefj.BriefParallel;
 import smcsampler.algo.schedules.AdaptiveTemperatureSchedule;
 import smcsampler.algo.schedules.TemperatureSchedule;
 
-public class AnnealedSMC<P extends Particle> implements MeasureApproximation<P> 
+public class AnnealedSMC<P extends AnnealedParticle> implements AnnealingTypeAlgorithm<P> 
 {
   @Arg                    @DefaultValue("0.5")
   public double resamplingESSThreshold = 0.5;
@@ -32,7 +32,7 @@ public class AnnealedSMC<P extends Particle> implements MeasureApproximation<P>
   @Arg               @DefaultValue("1")
   public Random random = new Random(1);
   
-  Kernels<P> kernels;
+  AnnealingKernels<P> kernels;
   
   /**
    * @return The particle population at the last step
@@ -78,7 +78,7 @@ public class AnnealedSMC<P extends Particle> implements MeasureApproximation<P>
     
     final double [] logWeights = new double[nParticles];
     @SuppressWarnings("unchecked")
-    final P [] particles = (P[]) new Particle[nParticles];
+    final P [] particles = (P[]) new AnnealedParticle[nParticles];
     
     BriefParallel.process(nParticles, nThreads, particleIndex ->
     {
@@ -102,7 +102,7 @@ public class AnnealedSMC<P extends Particle> implements MeasureApproximation<P>
   }
 
   @Override
-  public void setKernels(Kernels<P> kernels)
+  public void setKernels(AnnealingKernels<P> kernels)
   {
     this.kernels = kernels;
   }

@@ -1,5 +1,5 @@
 package mains;
-
+ 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -16,9 +16,9 @@ import bayonet.smc.ParticlePopulation;
 import blang.inits.Arg;
 import blang.inits.DefaultValue;
 import blang.inits.Implementations;
-import mains.MeasureApproxFactory.EvaluationContext;
+import mains.AnnealedApproxFactory.EvaluationContext;
 import smcsampler.algo.AnnealedLikelihoodParticle;
-import smcsampler.algo.Kernels;
+import smcsampler.algo.AnnealingKernels;
 
 public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
 {
@@ -35,7 +35,7 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
   public Random random = new Random(1);
   
   @Override
-  public Kernels<AnnealedLikelihoodParticle<List<Integer>>> kernels()
+  public AnnealingKernels<AnnealedLikelihoodParticle<List<Integer>>> kernels()
   {
     initCache();
     return new HMMKernels();
@@ -145,7 +145,7 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
     return result;
   }
   
-  class HMMKernels implements Kernels<AnnealedLikelihoodParticle<List<Integer>>>
+  class HMMKernels implements AnnealingKernels<AnnealedLikelihoodParticle<List<Integer>>>
   {
     @Override
     public AnnealedLikelihoodParticle<List<Integer>> sampleInitial(Random random)

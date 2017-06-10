@@ -8,7 +8,7 @@ import org.junit.Test;
 import baselines.SteppingStone;
 import bayonet.smc.ParticlePopulation;
 import mains.HMM;
-import mains.MeasureApproxFactory;
+import mains.AnnealedApproxFactory;
 import smcsampler.algo.AnnealedSMC;
 import smcsampler.algo.schedules.FixedTemperatureSchedule;
 
@@ -18,7 +18,7 @@ public class HMMTest
   @Test
   public void testInPlace()
   {
-    MeasureApproxFactory<?> factory = new MeasureApproxFactory<>();
+    AnnealedApproxFactory<?> factory = new AnnealedApproxFactory<>();
     factory.forbidOutputFiles = true;
     @SuppressWarnings("rawtypes")
     AnnealedSMC algo = new AnnealedSMC<>();
@@ -38,7 +38,7 @@ public class HMMTest
   @Test
   public void testAnnealedConvergence()
   {
-    MeasureApproxFactory<?> factory = new MeasureApproxFactory<>();
+    AnnealedApproxFactory<?> factory = new AnnealedApproxFactory<>();
     factory.forbidOutputFiles = true;
     @SuppressWarnings("rawtypes")
     AnnealedSMC algo = new AnnealedSMC<>();
@@ -62,7 +62,7 @@ public class HMMTest
   @Test
   public void testSteppingStoneConvergence()
   {
-    MeasureApproxFactory<?> factory = new MeasureApproxFactory<>();
+    AnnealedApproxFactory<?> factory = new AnnealedApproxFactory<>();
     factory.forbidOutputFiles = true;
     @SuppressWarnings("rawtypes")
     SteppingStone algo = new SteppingStone<>();

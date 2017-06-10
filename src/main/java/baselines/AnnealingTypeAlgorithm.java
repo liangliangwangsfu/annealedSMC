@@ -3,12 +3,12 @@ package baselines;
 import bayonet.smc.ParticlePopulation;
 import blang.inits.Implementations;
 import smcsampler.algo.AnnealedSMC;
-import smcsampler.algo.Kernels;
-import smcsampler.algo.Particle;
+import smcsampler.algo.AnnealingKernels;
+import smcsampler.algo.AnnealedParticle;
 
 @Implementations({AnnealedSMC.class})
-public interface MeasureApproximation<P extends Particle>
+public interface AnnealingTypeAlgorithm<P extends AnnealedParticle>
 {
-  void setKernels(Kernels<P> kernels);
+  void setKernels(AnnealingKernels<P> kernels);
   ParticlePopulation<P> getApproximation();
 }

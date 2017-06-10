@@ -8,7 +8,7 @@ import bayonet.smc.ParticlePopulation;
 
 public class SMCStaticUtils
 {
-  public static double relativeESS(ParticlePopulation<? extends Particle> population, double temperature, double nextTemperature, boolean conditional)
+  public static double relativeESS(ParticlePopulation<? extends AnnealedParticle> population, double temperature, double nextTemperature, boolean conditional)
   {
     double [] incrementalWeights = incrementalWeights(population, temperature, nextTemperature);
     double 
@@ -23,7 +23,7 @@ public class SMCStaticUtils
     return numerator * numerator / denominator;
   }
   
-  public static double[] incrementalWeights(ParticlePopulation<? extends Particle> population, double temperature,
+  public static double[] incrementalWeights(ParticlePopulation<? extends AnnealedParticle> population, double temperature,
       double nextTemperature)
   {
     double [] result = new double[population.nParticles()];

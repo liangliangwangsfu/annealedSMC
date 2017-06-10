@@ -5,6 +5,8 @@ import java.util.Random;
 import org.junit.Assert;
 import org.junit.Test;
 
+import baselines.SteppingStone;
+import bayonet.smc.ParticlePopulation;
 import mains.HMM;
 import mains.MeasureApproxFactory;
 import smcsampler.algo.AnnealedSMC;
@@ -34,7 +36,7 @@ public class HMMTest
   
   @SuppressWarnings("unchecked")
   @Test
-  public void testConvergence()
+  public void testAnnealedConvergence()
   {
     MeasureApproxFactory<?> factory = new MeasureApproxFactory<>();
     factory.forbidOutputFiles = true;
@@ -50,7 +52,35 @@ public class HMMTest
     
     double approx = (factory.buildAndRun().logNormEstimate());
     double exact  = (hmm.getExactLogZ());
+    System.out.println("Annealed SMC");
+    System.out.println(approx);
+    System.out.println(exact);
+    Assert.assertEquals(exact, approx, Math.abs(exact) * 0.01);
+  }
+  
+  @SuppressWarnings("unchecked")
+  @Test
+  public void testSteppingStoneConvergence()
+  {
+    MeasureApproxFactory<?> factory = new MeasureApproxFactory<>();
+    factory.forbidOutputFiles = true;
+    @SuppressWarnings("rawtypes")
+    SteppingStone algo = new SteppingStone<>();
+    algo.nMCMCPerTemperature = 1000;
+    factory.approximationAlgorithm = algo;
+    HMM hmm = new HMM();
+    factory.model = hmm;
+    FixedTemperatureSchedule temp = new FixedTemperatureSchedule();
+    algo.temperatureSchedule = temp;
+    temp.nTemperatures = 1000;
     
+    ParticlePopulation<?> pop = factory.buildAndRun();
+    System.out.println(pop.nParticles());
+    double approx = (pop.logNormEstimate());
+    double exact  = (hmm.getExactLogZ());
+    System.out.println("Stepping Stone");
+    System.out.println(approx);
+    System.out.println(exact);
     Assert.assertEquals(exact, approx, Math.abs(exact) * 0.01);
   }
 }

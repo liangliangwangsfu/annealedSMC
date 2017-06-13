@@ -1,8 +1,5 @@
 package smcsampler.algo;
 
-import java.util.Random;
-import java.util.SplittableRandom;
-
 import bayonet.distributions.Multinomial;
 import bayonet.smc.ParticlePopulation;
 
@@ -30,15 +27,6 @@ public class SMCStaticUtils
     for (int i = 0; i < population.nParticles(); i++)
       result[i] = population.particles.get(i).logDensityRatio(temperature, nextTemperature);
     Multinomial.expNormalize(result);
-    return result;
-  }
-  
-  public static Random [] parallelRandomStreams(Random seed, int nStreams)
-  {
-    Random[] result = new Random[nStreams]; 
-    SplittableRandom splitRandom = new SplittableRandom(seed.nextLong());
-    for (int i = 0; i < nStreams; i++)
-      result[i] = new Random(splitRandom.split().nextLong());
     return result;
   }
 }

@@ -3,18 +3,17 @@ package mains;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Random;
 
 import org.jgrapht.UndirectedGraph;
 
-import bayonet.distributions.Bernoulli;
-import bayonet.distributions.Multinomial;
+import bayonet.distributions.Random;
 import bayonet.graphs.GraphUtils;
 import bayonet.marginal.DiscreteFactorGraph;
 import bayonet.marginal.algo.SumProduct;
 import bayonet.smc.ParticlePopulation;
 import blang.inits.Arg;
 import blang.inits.DefaultValue;
+import blang.inits.DesignatedConstructor;
 import blang.inits.Implementations;
 import mains.AnnealedApproxFactory.EvaluationContext;
 import smcsampler.algo.AnnealedLikelihoodParticle;
@@ -47,7 +46,13 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
   {
     initCache();
     double approx = approximation.logNormEstimate();
-    context.register("logz", approx, Optional.of(exactLogZ));
+    context.registerLogZ(approx, Optional.of(exactLogZ));
+  }
+  
+  public List<Integer> observations()
+  {
+    initCache();
+    return observations;
   }
   
   void initCache()
@@ -86,7 +91,7 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
     for (int i = 0; i < len; i++)
     {
       int latent = prior.get(i);
-      result.add(Multinomial.sampleMultinomial(random, emissionPrs[latent]));
+      result.add(random.nextCategorical(emissionPrs[latent]));
     }
     return result;
   }
@@ -94,11 +99,11 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
   List<Integer> samplePrior(Random random)
   {
     List<Integer> prior = new ArrayList<>();
-    int latent = Multinomial.sampleMultinomial(random, initialPrs);
+    int latent = random.nextCategorical(initialPrs);
     prior.add(latent);
     for (int i = 1; i < len; i++)
     {
-      latent = Multinomial.sampleMultinomial(random, transitionPrs[latent]);
+      latent = random.nextCategorical(transitionPrs[latent]);
       prior.add(latent);
     }
     return prior;
@@ -169,7 +174,7 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
       double logNum   = logPrior(states) + temperature * logLikelihood(states);
        
       double acceptPr = Math.min(1.0, Math.exp(logNum - logDenom));
-      if (Bernoulli.generate(random, acceptPr))
+      if (random.nextBernoulli(acceptPr))
         ;
       else
         states.set(index, oldState);
@@ -190,16 +195,19 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
     }
   }
   
-  @Implementations({SimpleThreeStates.class})
+  @Implementations({SimpleThreeStates.class, SimpleTwoStates.class})
   static interface Parameters
   {
     double [][] transitionPrs();
     double [][] emissionPrs();
     double [] initialPrs();
-  }
+  } 
   
-  static class SimpleThreeStates implements Parameters
+  public static class SimpleThreeStates implements Parameters
   {
+    @DesignatedConstructor
+    public SimpleThreeStates() {}
+    
     @Override
     public double[][] transitionPrs()
     {
@@ -214,6 +222,28 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
     public double[] initialPrs()
     {
       return new double[]{0.25, 0.25, 0.5};
+    }
+  }
+  
+  public static class SimpleTwoStates implements Parameters
+  {
+    @DesignatedConstructor
+    public SimpleTwoStates() {}
+    
+    @Override
+    public double[][] transitionPrs()
+    {
+      return new double[][]{{0.1, 0.9},{0.6, 0.4}};
+    }
+    @Override
+    public double[][] emissionPrs()
+    {
+      return transitionPrs();
+    }
+    @Override
+    public double[] initialPrs()
+    {
+      return new double[]{0.2, 0.8};
     }
   }
 

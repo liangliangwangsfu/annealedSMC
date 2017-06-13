@@ -6,7 +6,7 @@ import mains.AnnealedApproxFactory.EvaluationContext;
 import smcsampler.algo.AnnealingKernels;
 import smcsampler.algo.AnnealedParticle;
 
-@Implementations({HMM.class})
+@Implementations({HMM.class, LegacyPhylo.class})
 interface Model<P extends AnnealedParticle>
 {
   AnnealingKernels<P> kernels();

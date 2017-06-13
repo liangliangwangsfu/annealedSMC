@@ -1,6 +1,6 @@
 package smcsampler.algo;
 
-import java.util.Random;
+import bayonet.distributions.Random;
 
 public interface AnnealingKernels<P extends AnnealedParticle>
 {

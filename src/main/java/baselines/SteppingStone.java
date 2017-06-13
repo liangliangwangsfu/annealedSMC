@@ -2,8 +2,8 @@ package baselines;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
+import bayonet.distributions.Random;
 import bayonet.math.NumericalUtils;
 import bayonet.smc.ParticlePopulation;
 import blang.inits.Arg;
@@ -15,8 +15,8 @@ import smcsampler.algo.AnnealingKernels;
 
 public class SteppingStone<P extends AnnealedParticle> implements AnnealingTypeAlgorithm<P>
 {
-  @Arg              @DefaultValue("1_000")
-  public int nMCMCPerTemperature = 1_000;
+  @Arg                 @DefaultValue("1_000")
+  public int nSamplesPerTemperature = 1_000;
   
   @Arg                @DefaultValue("1_000")
   public int nBurnInPerTemperature = 1_000;
@@ -50,7 +50,7 @@ public class SteppingStone<P extends AnnealedParticle> implements AnnealingTypeA
       for (int i = 0; i < nBurnInPerTemperature; i++)
         currentState = kernels.sampleNext(random, currentState, temperature);
       
-      for (int i = 0; i < nMCMCPerTemperature; i++)
+      for (int i = 0; i < nSamplesPerTemperature; i++)
       {
         currentState = isInit ? 
           kernels.sampleInitial(random) :
@@ -58,16 +58,16 @@ public class SteppingStone<P extends AnnealedParticle> implements AnnealingTypeA
         double logLikelihood = currentState.logDensityRatio(temperature, nextTemperature);
         logSumAnnealedLikelihoods = NumericalUtils.logAdd(logSumAnnealedLikelihoods, logLikelihood);
       }
-      sum += logSumAnnealedLikelihoods - Math.log(nMCMCPerTemperature);
+      sum += logSumAnnealedLikelihoods - Math.log(nSamplesPerTemperature);
       temperature = nextTemperature;
     }
     List<P> particles = new ArrayList<>();
-    for (int i = 0; i < nMCMCPerTemperature; i++)
+    for (int i = 0; i < nSamplesPerTemperature; i++)
     {
       currentState = kernels.sampleNext(random, currentState, temperature);
       particles.add(currentState);
     }
-    return ParticlePopulation.buildEquallyWeighted(particles, sum + Math.log(nMCMCPerTemperature)); // + log(n) b/c logZ estimate add - log(n) in ParticlePopulation
+    return ParticlePopulation.buildEquallyWeighted(particles, sum + Math.log(nSamplesPerTemperature)); // + log(n) b/c logZ estimate add - log(n) in ParticlePopulation
   }
 
   @Override

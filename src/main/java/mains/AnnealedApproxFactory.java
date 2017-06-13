@@ -55,6 +55,10 @@ public class AnnealedApproxFactory<P extends AnnealedParticle> extends Experimen
       this.out = out;
       BriefIO.println(out, "statistic,approximation,truth");
     }
+    public void registerLogZ(double approximation, Optional<Double> truth)
+    {
+      register("logz", approximation, truth);
+    }
     public void register(String name, double approximation, Optional<Double> truth)
     {
       BriefIO.println(out, name + "," + approximation + "," + (truth.isPresent() ? truth.get() : "NA"));

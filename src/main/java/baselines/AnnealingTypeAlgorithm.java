@@ -6,7 +6,7 @@ import smcsampler.algo.AnnealedSMC;
 import smcsampler.algo.AnnealingKernels;
 import smcsampler.algo.AnnealedParticle;
 
-@Implementations({AnnealedSMC.class})
+@Implementations({AnnealedSMC.class, SteppingStone.class})
 public interface AnnealingTypeAlgorithm<P extends AnnealedParticle>
 {
   void setKernels(AnnealingKernels<P> kernels);

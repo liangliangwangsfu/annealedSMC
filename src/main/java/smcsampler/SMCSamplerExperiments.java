@@ -96,6 +96,9 @@ public class SMCSamplerExperiments implements Runnable
 	public int adaptiveType = 0;
 
 	@Option
+	public boolean useCESS=true;
+
+	@Option
 	public double alphaSMCSampler = 0.95;
 
 	@Option
@@ -375,6 +378,7 @@ public class SMCSamplerExperiments implements Runnable
 				pc.alpha = instance.alphaSMCSampler;
 				pc.essRatioThreshold = instance.essRatioThreshold;
 				pc.adaptiveType = instance.adaptiveType;
+				pc.setUseCESS(instance.useCESS);
 				String filename ="essTempDiffDeterministic.csv";
 				if (instance.adaptiveTempDiff)
 					filename = "essTempDiffAdaptive" + instance.adaptiveType
@@ -402,9 +406,19 @@ public class SMCSamplerExperiments implements Runnable
 				ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
 				//proposalOptions.useGlobalMultiplicativeBranchProposal=false;
 				proposalOptions.useSubtreePruningRegraftingProposal=false;
-				proposalOptions.useStochasticNearestNeighborInterchangeProposal=true;
+//				proposalOptions.useStochasticNearestNeighborInterchangeProposal=false;
+				if(MSAParser.parseMSA(instance.data).nTaxa()<4)  proposalOptions.useStochasticNearestNeighborInterchangeProposal=false;
+				else
+					proposalOptions.useStochasticNearestNeighborInterchangeProposal=true;
+				
+//				if(MSAParser.parseMSA(instance.data).nTaxa()<4) 
 				proposalOptions.useStochasticNearestNeighborInterchangeProposalWithNbrsResampling=false;
-				proposalOptions.multiplicativeBranchProposalScaling=2.0;
+//				else 
+//					proposalOptions.useStochasticNearestNeighborInterchangeProposalWithNbrsResampling=true;
+				proposalOptions.multiplicativeBranchProposalScaling=1.5;
+				proposalOptions.useGlobalMultiplicativeBranchProposal=true;
+//				proposalOptions.useMultiplicativeBranchProposal=false;
+				
 				LinkedList<ProposalDistribution> proposalDistributions = new LinkedList<ProposalDistribution>();
 				// ParticleKernel<UnrootedTreeState> ppk
 				AnnealingKernel ppk = new AnnealingKernel(ncts, 1.0/instance.nAnnealing, proposalDistributions, proposalOptions);				

@@ -24,7 +24,6 @@ import nuts.math.HashGraph;
 public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 {
 	@Option public static double AnnealDeltaProposalRate = 10.0;    
-
 	private int nAnnealing = 500;
 	@Option public static boolean printBranchLengthMagnitudes = false;
 	private final UnrootedTreeState initial;
@@ -52,7 +51,7 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 	}
 	public void setTemperatureDifference(double temperatureDifference) {				
 		double newTemp=temperature + temperatureDifference;
-		if(newTemp>1.0) 
+		if(newTemp>=1.0) 
 		{
 			newtemperature=1.0;
 			this.temperatureDifference=1.0-temperature;			
@@ -95,36 +94,37 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 	{
 		if (currentIter==0) 
 		{
-			current = sampleFromPrior(rand, current);			
+			current = sampleFromPrior(rand, current);
 			return Pair.makePair(current, 0.0); 
 		}
-		ProposalDistribution proposal = null; 
-		UnrootedTreeState proposedState=null; 		 		
-		while(proposal==null)
+		ProposalDistribution proposal = nextProposal(rand);         
+		UnrootedTree currenturt=current.getNonClockTree();
+		Pair<UnrootedTree,Double> result = proposal.propose(currenturt, rand);
+		UnrootedTreeState  proposedState = null;
+		double logw = temperatureDifference * current.logLikelihood();
+		if (result != null) // might happen e.g. when trying to do nni with 3 leaves
 		{
-			proposal = nextProposal(rand);         
-			Pair<UnrootedTree,Double> result = proposal.propose(current.getNonClockTree(), rand);
-			if (result != null) // might happen e.g. when trying to do nni with 3 leaves
-			{
-				proposedState = current.copyAndChange(result.getFirst());
-				final double logProposalRatio = result.getSecond();
-				double currentPrior = current.getLogPrior(), proposePrior = proposedState
-						.getLogPrior();
-				double logLikRatio = proposePrior+newtemperature* proposedState.getLogLikelihood()
-				- (currentPrior+newtemperature* current.getLogLikelihood());
-				final double ratio = Math.min(1,
-						Math.exp(logProposalRatio + logLikRatio));
-				if (Double.isNaN(ratio))
-					throw new RuntimeException();
-				if (rand.nextDouble() >= ratio) {
-					proposedState = current;
-				}
+			double logTargetDenCurrent=logTargetDensity(newtemperature,current);
+			proposedState = current.copyAndChange(result.getFirst());
+			final double logProposalRatio = result.getSecond();
+			double logLikRatio = logTargetDensity(newtemperature,proposedState) -logTargetDenCurrent;  				
+			final double ratio = Math.min(1,
+					Math.exp(logProposalRatio + logLikRatio));
+			if (Double.isNaN(ratio))
+				throw new RuntimeException();
+			if (rand.nextDouble() >= ratio) {
+				proposedState = current;
 			}
 		}
 		temperature = newtemperature;
-		double logw = temperatureDifference * current.logLikelihood();
 		return Pair.makePair(proposedState, logw);    
 	}
+
+	public double logTargetDensity(double temperature, UnrootedTreeState uts)
+	{
+		return uts.getLogPrior()+ newtemperature*uts.getLogLikelihood();	
+	}
+
 
 	public void setCurrentIter(int  currentIter) {	
 		this.currentIter=currentIter; 
@@ -190,14 +190,11 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 		Queue<Taxon> queue = Lists.newLinkedList(shuffled);
 		if (queue.isEmpty())
 			new RuntimeException();
-
 		Taxon leaf1 = queue.poll();
 		if (queue.isEmpty())
 			new RuntimeException();
-
 		Taxon leaf2 = queue.poll();
 		result.add(new UnorderedPair<Taxon, Taxon>(leaf1, leaf2)); 
-
 		int i=1;
 		while (!queue.isEmpty())
 		{
@@ -212,10 +209,8 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 			result.add(new UnorderedPair<Taxon, Taxon>(internal, edge.getFirst()));
 			result.add(new UnorderedPair<Taxon, Taxon>(internal, edge.getSecond()));
 		}
-
 		Graph<Taxon> topo=new HashGraph(new HashSet<UnorderedPair<Taxon, Taxon>>(result));
 		Map<UnorderedPair<Taxon, Taxon>, Double> branchLengths = new HashMap<UnorderedPair<Taxon,Taxon>,Double>();
-
 		for (UnorderedPair<Taxon, Taxon> edge : result)		    			    
 			branchLengths.put(edge, branchDistribution.sampleObject(random));
 		return new UnrootedTree(topo, branchLengths);

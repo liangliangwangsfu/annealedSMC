@@ -51,8 +51,18 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
     initCache();
     double approx = approximation.logNormEstimate();
     context.registerLogZ(approx, Optional.of(exactLogZ));
+    double[][] normalizedCopy = DiscreteFactorGraph.getNormalizedCopy(sp.computeMarginal(0));
+    context.register("marginal0", marginal0(approximation), Optional.of(normalizedCopy[0][0]));
   }
   
+  private double marginal0(ParticlePopulation<AnnealedLikelihoodParticle<List<Integer>>> approximation)
+  {
+    double sum = 0.0;
+    for (int i = 0; i < approximation.nParticles(); i++)
+      sum += approximation.particles.get(i).contents.get(0) == 0 ? approximation.getNormalizedWeight(i) : 0.0;
+    return sum;
+  }
+
   public List<Integer> observations()
   {
     initCache();
@@ -68,8 +78,8 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
     emissionPrs = parameters.emissionPrs();
     initialPrs = parameters.initialPrs();
     observations = generateData(random);
-    DiscreteFactorGraph<Integer> dfg = createHMM(observations);
-    SumProduct<Integer> sp = new SumProduct<>(dfg);
+    dfg = createHMM(observations);
+    sp = new SumProduct<>(dfg);
     exactLogZ = sp.logNormalization();
     
     initialized = true;
@@ -81,6 +91,8 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
   double [][] emissionPrs = null;
   double [] initialPrs = null;
   List<Integer> observations = null;
+  DiscreteFactorGraph<Integer> dfg;
+  SumProduct<Integer> sp;
   double exactLogZ;
   
   public double getExactLogZ()
@@ -234,7 +246,7 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
       result[0] = result[3] = new double[]{0.2, 0.8};
       result[1] = new double[]{0.1, 0.9};
       result[4] = new double[]{0.3, 0.7};
-      result[3] = new double[]{epsilon, 1.0 - epsilon};
+      result[2] = new double[]{epsilon, 1.0 - epsilon};
       return result;
     }
 

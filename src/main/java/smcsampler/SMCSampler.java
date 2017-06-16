@@ -39,7 +39,7 @@ public final class SMCSampler<S>
 	@Option
 	public Random rand = new Random(1);
 	@Option
-	public boolean resampleLastRound = true;
+	public boolean resampleLastRound = false;
 	@Option
 	public int nThreads = 1;
 	@Option
@@ -52,7 +52,17 @@ public final class SMCSampler<S>
 	private ProcessSchedule schedule = null;
 	private double ess = N;
 	//	private double cess=1.0;
-	private double tempDiff;
+	private double tempDiff=0;
+	
+	private boolean useCESS=true;
+
+	public boolean isUseCESS() {
+		return useCESS;
+	}
+
+	public void setUseCESS(boolean useCESS) {
+		this.useCESS = useCESS;
+	}
 
 	@Option
 	public boolean adaptiveTempDiff = false;
@@ -74,7 +84,7 @@ public final class SMCSampler<S>
 	}
 
 
-	
+
 	public static enum ResamplingStrategy {
 		ALWAYS {
 			@Override
@@ -125,21 +135,21 @@ public final class SMCSampler<S>
 
 	public static double ess(double[] ws) {
 		double sumOfSqr = 0.0;
-		for (double w : ws)
-			sumOfSqr += w * w;
-		return 1.0 / sumOfSqr;
+		for (double w : ws)sumOfSqr += w * w;
+		return 1.0/sumOfSqr;
 	}
 
-	public static double cess(double[] normalizedPreviousWs, double[] ws) {
-		double sumOfSqr = 0.0;
-		double sum=0.0;
-		if(normalizedPreviousWs.length!=ws.length)  
+	public static double cess(double[] normalizedPreviousWs, double[] logws) {
+		if(normalizedPreviousWs.length!=logws.length)  
 			throw new RuntimeException("normalizedPreviousWs and ws should have the same length!");
-		for (int i=0;i<ws.length;i++){
-			sumOfSqr += normalizedPreviousWs[i]*ws[i] * ws[i];
-			sum += normalizedPreviousWs[i]*ws[i];
-		}		 
-		return sum*sum/sumOfSqr;
+		double [] numerator=new double[logws.length];
+		double [] denominator =new double[logws.length];
+		for (int i=0;i<logws.length;i++){
+			denominator[i] = Math.log(normalizedPreviousWs[i])+2*logws[i];
+			numerator[i] = Math.log(normalizedPreviousWs[i])+logws[i];
+		}		
+		double tmp=SloppyMath.logAdd(numerator);
+		return Math.exp(2*tmp-SloppyMath.logAdd(denominator));
 	}
 
 	public static <S> void bootstrapFilter(final SMCSamplerKernel<S> kernel, 
@@ -158,15 +168,12 @@ public final class SMCSampler<S>
 	private double[] logWeights;
 	private double[] normalizedWeights;
 	private double varLogZ = 0;
-
 	public List<S> getSamples() {
 		return samples;
 	}
-
 	public double[] getLogWeights() {
 		return logWeights;
 	}
-
 	private void propagateAndComputeWeights(final SMCSamplerKernel<S> kernel,
 			final int t)
 	{		
@@ -191,11 +198,10 @@ public final class SMCSampler<S>
 					logWeights[x] = Double.NEGATIVE_INFINITY;
 				} else {
 					samples.set(x, current.getFirst());
-					logWeights[x] = Math.log(normalizedWeights[x])+ current.getSecond();						
+					logWeights[x] = Math.log(normalizedWeights[x])+ current.getSecond();				
 				}
 			}
 		});		
-		lognorm += logAdd(logWeights);
 		if(verbose) LogInfo.end_track();		
 	}
 	private double lognorm = 0.0;
@@ -209,21 +215,16 @@ public final class SMCSampler<S>
 
 	private void init(final SMCSamplerKernel<S> kernel)
 	{
-		// ancestors = new ArrayList<Integer>(N);
-		// for (int n = 0; n < N; n++)
-		// ancestors.add(n);
 		lognorm = 0.0;
 		samples = new ArrayList<S>(N);
 		S initial = kernel.getInitial();
-		for (int n = 0; n < N; n++)
-			samples.add(initial);
+		for (int n = 0; n < N; n++) samples.add(initial);
 		logWeights = new double[N]; // init to zero		
 		normalizedWeights = new double[N];
 		for(int i=0;i<normalizedWeights.length;i++) normalizedWeights[i]=1.0/N;
 	}
 
-
-	public double temperatureDifference(final double alphaTimesPreviousESS,double absoluteAccuracy,double min,double max) {
+	public double temperatureDifference(final double alpha,double absoluteAccuracy,double min,double max) {
 		final double[] logLike = new double[samples.size()];
 		for (int n = 0; n < samples.size(); n++) {
 			UnrootedTreeState urt = ((UnrootedTreeState) samples.get(n));
@@ -233,13 +234,18 @@ public final class SMCSampler<S>
 		UnivariateFunction f = new UnivariateFunction() {
 			public double value(double x) {
 				double[] logWeightLikePriorVec = new double[samples.size()];
-				for (int n = 0; n < samples.size(); n++) 
-					//					logWeightLikePriorVec[n] = logWeights[n] + logLike[n]* x;				
-					logWeightLikePriorVec[n] = logLike[n]* x;
-				NumUtils.expNormalize(logWeightLikePriorVec);
-				//return (ess(logWeightLikePriorVec)/logWeightLikePriorVec.length - alphaTimesPreviousESS);
-				//				System.out.println(x+" "+cess(normalizedWeights,logWeightLikePriorVec)+" "+alphaTimesPreviousESS);
-				return (cess(normalizedWeights,logWeightLikePriorVec) - alphaTimesPreviousESS);
+				if(useCESS)
+				{   
+					for (int n = 0; n < samples.size(); n++) 	logWeightLikePriorVec[n] = logLike[n]* x; //incremental weights										
+					return (cess(normalizedWeights,logWeightLikePriorVec) - alpha);
+				}
+				else
+				{					
+					for (int n = 0; n < samples.size(); n++) 	logWeightLikePriorVec[n] = Math.log(normalizedWeights[n])+logLike[n]* x; 	
+					NumUtils.expNormalize(logWeightLikePriorVec); // no need to normalize 
+					return (ess(logWeightLikePriorVec) - alpha*ess);
+				}
+
 			}
 		};
 		double result = 0;
@@ -275,10 +281,9 @@ public final class SMCSampler<S>
 		while(!kernel.isLastIter()){			
 			kernel.setCurrentIter(t);			
 			if (adaptiveTempDiff) {
-				tempDiff = 0;
 				alpha0 =adaptiveScheme.alpha(alpha0, t); 
 				if (t > 0) {						
-					tempDiff = temperatureDifference(alpha, 1.0e-9, 0, 0.2);
+					tempDiff = temperatureDifference(alpha, 1.0e-10, 0, 0.2);
 					if(tempDiff == -1) tempDiff = kernel.getDefaultTemperatureDifference();
 				}
 			} else {
@@ -288,6 +293,8 @@ public final class SMCSampler<S>
 			if (verbose)
 				LogInfo.track("Particle generation " + (t + 1) , true); 
 			propagateAndComputeWeights(kernel, t);		
+			if(t>0)lognorm += SloppyMath.logAdd(logWeights); 					
+			//				lognorm += logAdd(logWeights);			
 			normalizedWeights = logWeights.clone();
 			NumUtils.expNormalize(normalizedWeights);
 			if (verbose)
@@ -310,7 +317,7 @@ public final class SMCSampler<S>
 					&& (hasNulls(samples) || resamplingStrategy
 							.needResample(normalizedWeights))) {
 				samples = resample(samples, normalizedWeights, rand);
-				ess = N;
+				ess = N;				
 				for(int i=0;i<normalizedWeights.length;i++) normalizedWeights[i]=1.0/N;
 			}
 			if (verbose)
@@ -341,7 +348,6 @@ public final class SMCSampler<S>
 			//			if (schedule != null)
 			//				schedule.monitor(new ProcessScheduleContext(t, t == T - 1,
 			//				ResampleStatus.NA));
-
 			t++;
 		}	
 		if(smcSamplerOut!=null)smcSamplerOut.close();

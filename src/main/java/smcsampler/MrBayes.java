@@ -226,7 +226,7 @@ public class MrBayes implements Runnable
 						"propset ParsSPR(Tau,V)$prob=0; \n"+
 						//"propset ExtTBR(Tau,V)$prob=0; \n"+														
 					(setSSinMB?" ss alpha=0.3 nsteps=50;\n":"mcmc;\n" +
-								"sumt burnin="+((int)(ngenNum*0.15))+";\n")+								 
+								"sumt burnin="+((int)(ngenNum*0.05))+";\n")+								 
 				"end;\n");
 		out.close();
 	}

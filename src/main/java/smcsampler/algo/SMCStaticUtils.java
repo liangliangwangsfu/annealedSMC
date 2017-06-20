@@ -17,7 +17,7 @@ public class SMCStaticUtils
       numerator   += factor;
       denominator += factor * (conditional ? incrementalWeights[i] : factor);
     }
-    return numerator * numerator / denominator;
+    return numerator * numerator / denominator / (conditional ? 1.0 : population.nParticles()); 
   }
   
   public static double[] incrementalWeights(ParticlePopulation<? extends AnnealedParticle> population, double temperature,

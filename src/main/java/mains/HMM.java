@@ -198,19 +198,22 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
       int index = random.nextInt(len);
       int oldState = current.contents.get(index);
       List<Integer> states = inPlace ? current.contents : new ArrayList<>(current.contents);
-      double logDenom = logPrior(states, index) + temperature * logLikelihood(states, index);
+      double oldLocalLogLikelihood = logLikelihood(states, index);
+      double logDenom = logPrior(states, index) + temperature * oldLocalLogLikelihood;
       
       int newState = random.nextInt(nLatents);
       states.set(index, newState);
-      double logNum   = logPrior(states, index) + temperature * logLikelihood(states, index);
+      double newLocalLogLikelihood = logLikelihood(states, index);
+      double logNum   = logPrior(states, index) + temperature * newLocalLogLikelihood;
        
       double acceptPr = Math.min(1.0, Math.exp(logNum - logDenom));
+      double newLogLikelihood = current.logLikelihood;
       if (random.nextBernoulli(acceptPr))
-        ;
+        newLogLikelihood += newLocalLogLikelihood - oldLocalLogLikelihood;
       else
         states.set(index, oldState);
       
-      return new AnnealedLikelihoodParticle<List<Integer>>(logLikelihood(states), states);
+      return new AnnealedLikelihoodParticle<List<Integer>>(newLogLikelihood, states);
     }
 
     @Override

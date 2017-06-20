@@ -20,7 +20,7 @@ public interface AnnealingKernels<P extends AnnealedParticle>
   boolean inPlace();
   
   /**
-   * Only requires is proposal is in place.
+   * Only requires if proposal is in place.
    */
   P deepCopy(P particle);
 }

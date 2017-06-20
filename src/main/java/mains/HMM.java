@@ -25,8 +25,8 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
   @Arg                @DefaultValue("SimpleThreeStates")
   public Parameters parameters = new SimpleThreeStates();
   
-  @Arg      @DefaultValue("false")
-  public boolean inPlace = false;
+  @Arg      @DefaultValue("true")
+  public boolean inPlace = true;
   
   @Arg @DefaultValue("10")
   public    int len = 10;
@@ -141,6 +141,21 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
     return sum;
   }
   
+  double logLikelihood(List<Integer> latents, int index)
+  {
+    return Math.log(emissionPrs[latents.get(index)][observations.get(index)]);
+  }
+  
+  double logPrior(List<Integer> latents, int index)
+  {
+    double sum = index == 0 ? Math.log(initialPrs[latents.get(0)]) : 0.0;
+    if (index > 0)
+      sum += Math.log(transitionPrs[latents.get(index-1)][latents.get(index)]);
+    if (index + 1 < latents.size())
+      sum += Math.log(transitionPrs[latents.get(index)][latents.get(index+1)]);
+    return sum;
+  }
+  
   DiscreteFactorGraph<Integer> createHMM(List<Integer> observations)
   {
     UndirectedGraph<Integer, ?> topology = GraphUtils.createChainTopology(len);
@@ -183,11 +198,11 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
       int index = random.nextInt(len);
       int oldState = current.contents.get(index);
       List<Integer> states = inPlace ? current.contents : new ArrayList<>(current.contents);
-      double logDenom = logPrior(states) + temperature * current.logLikelihood;
+      double logDenom = logPrior(states, index) + temperature * logLikelihood(states, index);
       
       int newState = random.nextInt(nLatents);
       states.set(index, newState);
-      double logNum   = logPrior(states) + temperature * logLikelihood(states);
+      double logNum   = logPrior(states, index) + temperature * logLikelihood(states, index);
        
       double acceptPr = Math.min(1.0, Math.exp(logNum - logDenom));
       if (random.nextBernoulli(acceptPr))

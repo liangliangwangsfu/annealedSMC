@@ -65,7 +65,7 @@ public class SteppingStone<P extends AnnealedParticle> implements AnnealingTypeA
     for (int i = 0; i < nSamplesPerTemperature; i++)
     {
       currentState = kernels.sampleNext(random, currentState, temperature);
-      particles.add(currentState);
+      particles.add(kernels.inPlace() ? kernels.deepCopy(currentState) : currentState);
     }
     return ParticlePopulation.buildEquallyWeighted(particles, sum + Math.log(nSamplesPerTemperature)); // + log(n) b/c logZ estimate add - log(n) in ParticlePopulation
   }

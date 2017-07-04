@@ -323,14 +323,16 @@ public class SMCSamplerExperiments implements Runnable
 				mb.nChains = 1;
 				mb.seed = mainRand.nextInt();
 				mb.nMCMCIters = (int) (iterScale * instance.nThousandIters * 1000);
-				UnrootedTree initTree = initTree(new Random(3), instance.generator.nTaxa);
+				List<Taxon> leaves = MSAParser.parseMSA(instance.data).taxa();
+				UnrootedTree initTree = initTree(new Random(5),  leaves);
 				String outName="startTree.newick";
 				writeToDisk(new File(instance.output, outName), initTree.toNewick());
 				String cmdStr="cat " +outName + "  | sed 's/internal_[0-9]*//g' > " + "start-tree.newick";                    
 //				LogInfo.logs(cmdStr);
                 IO.call("bash -s",cmdStr,instance.output);          
-				mb.setStartTree(IO.f2s(new File(instance.output,"start-tree.newick")));
-				if(MSAParser.parseMSA(instance.data).nTaxa()<4) mb.useNNI=false;
+//				mb.setStartTree(IO.f2s(new File(instance.output,"start-tree.newick")));
+				
+				if(leaves.size()<4) mb.useNNI=false;
 				if(mb.fixGTRGammaPara)
 				{
 					mb.alpha=instance.generator.alpha;
@@ -386,10 +388,7 @@ public class SMCSamplerExperiments implements Runnable
 				pc.smcSamplerOut = IOUtils.openOutEasy(new File(
 						instance.output, filename));
 				List<Taxon> leaves = MSAParser.parseMSA(instance.data).taxa();
-				//				UnrootedTree initTree = UnrootedTree.fromRooted(TreeGenerators.sampleExpNonclock(
-				//						instance.mainRand, leaves.size(), 10.0));
-				//				initTree(instance.mainRand, leaves.size());
-				UnrootedTree initTree = initTree(new Random(3), leaves.size());
+				UnrootedTree initTree = initTree(new Random(3), leaves);
 				Gamma exponentialPrior = Gamma.exponential(10.0);
 				StandardNonClockPriorDensity priorDensity = new StandardNonClockPriorDensity(
 						exponentialPrior);
@@ -445,9 +444,8 @@ public class SMCSamplerExperiments implements Runnable
 
 
 
-	public static  UnrootedTree initTree(Random rand, int nLeaves){	
-		return UnrootedTree.fromRooted(TreeGenerators.sampleExpNonclock(
-				rand, nLeaves, 10.0));						
+	public static  UnrootedTree initTree(Random rand, List<Taxon> leaves){	
+		return UnrootedTree.fromRooted(TreeGenerators.sampleExpNonclock(rand,leaves, 10.0));				
 	}
 
 

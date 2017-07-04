@@ -83,7 +83,8 @@ public class MrBayes implements Runnable
 		writeToDisk(new File(workingDir, "mrbayes-stdout"), msg);
 //		LogInfo.logs("grep Mean: "+mrBayesFolder+"/time=*/mrbayes-stdout |awk {'print $3'}");
 		String marginalLikeMean = IO.call("grep Mean: "+workingDir+"/mrbayes-stdout", null, workingDir);		
-//		String marginalLikeMean = IO.call("grep 1     -  "+workingDir+"/mrbayes-stdout", null, workingDir);		     
+//		String marginalLikeMean = IO.call("grep 1     -  "+workingDir+"/mrbayes-stdout", null, workingDir);	
+		System.out.println(marginalLikeMean);
 		return marginalLikeMean.substring(marginalLikeMean.indexOf(":")+1, marginalLikeMean.indexOf(".")+3);
 	}
 

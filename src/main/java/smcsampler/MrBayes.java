@@ -20,6 +20,7 @@ import nuts.lang.StringUtils;
 import pty.RootedTree;
 import pty.RootedTree.RootedTreeProcessor;
 import fig.basic.IOUtils;
+import fig.basic.LogInfo;
 import fig.basic.Option;
 
 
@@ -55,7 +56,7 @@ public class MrBayes implements Runnable
 	@Option public SequenceType st = SequenceType.RNA;
 	@Option public File alignmentInputFile = null;
 
-	private final int numberOfProposals=3; 
+ 
 	private File  workingDir = null;
 	private String starttreeString="";
 
@@ -81,12 +82,11 @@ public class MrBayes implements Runnable
 		NexusWriter.writeNexus(alignment, nexusFile, st);
 		writeMrBayesCmd_(mrBayesCmd,true);    
 		String msg = IO.call("" + mrBayesPath + " " + mrBayesCmd.getName(), null, workingDir);		
-		writeToDisk(new File(workingDir, "mrbayes-stdout"), msg);
-//		LogInfo.logs("grep Mean: "+mrBayesFolder+"/time=*/mrbayes-stdout |awk {'print $3'}");
-		String marginalLikeMean = IO.call("grep Mean: "+workingDir+"/mrbayes-stdout", null, workingDir);		
-//		String marginalLikeMean = IO.call("grep 1     -  "+workingDir+"/mrbayes-stdout", null, workingDir);	
-		System.out.println(marginalLikeMean);
-		return marginalLikeMean.substring(marginalLikeMean.indexOf(":")+1, marginalLikeMean.indexOf(".")+3);
+		writeToDisk(new File(workingDir, "mrbayes-stdout"), msg);		
+//		LogInfo.track("grep \"1\\s\\s*\\s[-][A-Za-z0-9\\.]*\"  "+workingDir+"/mrbayes-stdout");
+		//LogInfo.end_track();
+		String marginalLikeMean = IO.call("bash -s", "grep \"1\\s\\s*\\s[-][A-Za-z0-9\\.]*\"  "+workingDir+"/mrbayes-stdout | awk {'print $2'}",  workingDir);		
+		return marginalLikeMean; 
 	}
 
 	
@@ -151,8 +151,8 @@ public class MrBayes implements Runnable
 		return trans;
 	}
 	private static final Pattern translPattern = Pattern.compile("\\s*([0-9]+)\\s(.*)[,;]");
-    private static final Pattern newickPattern = Pattern.compile(".*[=]\\s(.*)[;]");	
-    
+    private static final Pattern newickPattern = Pattern.compile(".*[=]\\s(.*)[;]");
+  
 	//  private static final Pattern speciesCode = Pattern.compile("[;)]([0-9]+)[:]");
 	private static RootedTree parseTree(String line,
 			Map<String, String> translation)

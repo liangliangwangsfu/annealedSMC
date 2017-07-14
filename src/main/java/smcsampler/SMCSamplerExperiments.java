@@ -78,11 +78,11 @@ public class SMCSamplerExperiments implements Runnable
 	@Option public String dataDirName = "output";		
 	@Option public SequenceType sequenceType=SequenceType.RNA; 
 	@Option public boolean isPMCMC4clock=true;
-	@Option 	public boolean  useNJinfo=false;	
-	@Option 	public boolean  useTopologyProcessor=false; 
-	@Option 	public boolean  saveTreesFromPMCMC=false;
-	@Option 	public String nameOfAllTrees="allTrees.trees";
-	@Option 	public double csmc_trans2tranv=2.0;
+	@Option public boolean  useNJinfo=false;	
+	@Option public boolean  useTopologyProcessor=false; 
+	@Option public boolean  saveTreesFromPMCMC=false;
+	@Option public String nameOfAllTrees="allTrees.trees";
+	@Option public double csmc_trans2tranv=2.0;
 	@Option public double smcmcmcMix = 0.5;
 	@Option public boolean betterStartVal=true;
 	@Option public SMCSampler.ResamplingStrategy resamplingStrategy=SMCSampler.ResamplingStrategy.ESS;
@@ -132,8 +132,6 @@ public class SMCSamplerExperiments implements Runnable
 
 
 
-
-
 	protected void treeComparison()
 	{
 		//    data = new File( generator.output, "sim-0.msf");
@@ -162,7 +160,7 @@ public class SMCSamplerExperiments implements Runnable
 
 			// evaluate the likelihood of the inferred tree
 			Dataset dataset = DatasetUtils.fromAlignment(this.data, sequenceType);
-			CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites());
+			CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites(),csmc_trans2tranv);
 
 			UnrootedTree goldut = 
 					(generator.useGutellData ||!useDataGenerator)?
@@ -393,7 +391,7 @@ public class SMCSamplerExperiments implements Runnable
 				StandardNonClockPriorDensity priorDensity = new StandardNonClockPriorDensity(
 						exponentialPrior);
 				Dataset dataset = DatasetUtils.fromAlignment(instance.data, instance.sequenceType);		        
-				CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites());
+				CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites(),instance.csmc_trans2tranv);
 				UnrootedTreeState ncts = UnrootedTreeState.initFastState(initTree, dataset, ctmc,priorDensity);			
 				if(dataset.observations().size()<=5)
 					instance.marginalLogLike=numericalIntegratedMarginalLikelihood(instance.mainRand, ncts, 10.0, instance.nNumericalIntegration);
@@ -403,7 +401,7 @@ public class SMCSamplerExperiments implements Runnable
 				LogInfo.end_track();
 
 				ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
-				//proposalOptions.useGlobalMultiplicativeBranchProposal=false;
+//				proposalOptions.useGlobalMultiplicativeBranchProposal=false;
 				proposalOptions.useSubtreePruningRegraftingProposal=false;
 //				proposalOptions.useStochasticNearestNeighborInterchangeProposal=false;
 				if(MSAParser.parseMSA(instance.data).nTaxa()<4)  proposalOptions.useStochasticNearestNeighborInterchangeProposal=false;
@@ -414,7 +412,7 @@ public class SMCSamplerExperiments implements Runnable
 				proposalOptions.useStochasticNearestNeighborInterchangeProposalWithNbrsResampling=false;
 //				else 
 //					proposalOptions.useStochasticNearestNeighborInterchangeProposalWithNbrsResampling=true;
-				proposalOptions.multiplicativeBranchProposalScaling=1.5;
+				proposalOptions.multiplicativeBranchProposalScaling=2;
 				proposalOptions.useGlobalMultiplicativeBranchProposal=true;
 //				proposalOptions.useMultiplicativeBranchProposal=false;
 				

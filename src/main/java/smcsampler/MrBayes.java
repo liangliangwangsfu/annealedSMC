@@ -38,6 +38,7 @@ public class MrBayes implements Runnable
 	@Option public boolean setFixCoalescentPr = true;
 	@Option public boolean fixNucleotideFreq = false;
 	@Option public boolean set2nst = false;
+	@Option public boolean setJC=false;
 	@Option public boolean setGTRGammaI = false;
 	@Option public boolean setInv = false;
 	@Option public boolean fixGTRGammaPara=false;
@@ -210,13 +211,14 @@ public class MrBayes implements Runnable
 						"mcmcp Nchains=" + nChains + ";\n" +
 //						"mcmcp seed=" + Math.abs(seed) + ";\n" +
 						"set seed=" + Math.abs(seed) + ";\n" +  
-						"set scientific=no;\n"+
-						(setGTRGammaI?" lset nst=6 rates="+(setInv?"invgamma":"gamma")+" ngammacat=4;\n"+"prset tratiopr = beta(1, 1);\n":"")+
-						(set2nst?"lset nst=2;\n"+"prset tratiopr = beta(1, 1);\n":"lset nst=6;\n")+
-						(fixNucleotideFreq?"prset statefreqpr=fixed(0.25,0.25,0.25,0.25);\n":"")+        
-						(setToK2P ? "prset revmatpr=fixed(" + b4 +"," + a4 + "," + b4 + "," + b4 +"," + a4 + "," + b4 + ");\n":"")+
-						(fixtratioInMb? "prset tratiopr = fixed("+mb_trans2tranv+");\n":"")+
-						(fixGTRGammaPara?fixGtrGammaStr:"")+
+						"set scientific=no;\n"+					
+						(setJC?"lset nst=1 rates=equal;\n":
+							  (setGTRGammaI?" lset nst=6 rates="+(setInv?"invgamma":"gamma")+" ngammacat=4;\n"+"prset tratiopr = beta(1, 1);\n":"")+
+								(set2nst?"lset nst=2;\n"+"prset tratiopr = beta(1, 1);\n":"lset nst=6;\n")+						        
+								(setToK2P ? "prset revmatpr=fixed(" + b4 +"," + a4 + "," + b4 + "," + b4 +"," + a4 + "," + b4 + ");\n":"")+
+								(fixtratioInMb? "prset tratiopr = fixed("+mb_trans2tranv+");\n":"")+
+								(fixGTRGammaPara?fixGtrGammaStr:""))+
+						(fixNucleotideFreq?"prset statefreqpr=fixed(0.25,0.25,0.25,0.25);\n":"")+						
 						(setstarttree?("startvals  tau = starttree;\n"+
 								"startvals  V = starttree;\n"):"")+
 						"propset NNI(Tau,V)$prob="+(useNNI?25:0)+";\n"+

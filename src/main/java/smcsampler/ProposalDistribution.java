@@ -119,20 +119,24 @@ public interface ProposalDistribution
 
 		public Pair<UnrootedTree, Double> propose(UnrootedTree current,
 				Random rand) {
-			double m = Sampling.nextDouble(rand, 1.0 / a, a);
+			double lambda=2*Math.log(a);
+			double rvUnif = Sampling.nextDouble(rand, 0, 1);
+			double m  = Math.exp(lambda*(rvUnif-0.5));			
 			if (global) {
 				double sum = 0.0;
 				UnrootedTree proposedTree = current;				
 				for (UnorderedPair<Taxon, Taxon> edge : current.edges()) {
-					m = Sampling.nextDouble(rand, 1.0 / a, a);
+					rvUnif = Sampling.nextDouble(rand, 0, 1);
+					m  = Math.exp(lambda*(rvUnif-0.5));								
 					Pair<UnrootedTree, Double> p = propose(proposedTree, rand,
 							edge, m);					
 					proposedTree = p.getFirst();
 					sum += p.getSecond();					
 				}
 				return Pair.makePair(proposedTree, sum);
-			} else if (selectedEdge != null)
-				propose(current, rand, selectedEdge, m);
+			} else if (selectedEdge != null){
+				return propose(current, rand, selectedEdge, m);
+			}
 			return propose(current, rand, current.randomEdge(rand), m);
 		}
 
@@ -143,7 +147,7 @@ public interface ProposalDistribution
 					edge, newBL);
 			// final NonClockTreeState proposedState =
 			// current.copyAndChange(proposedTree);
-             return Pair.makePair(proposedTree, -Math.log(m));						
+             return Pair.makePair(proposedTree, Math.log(m));						
 		}
 
 		public String description() {

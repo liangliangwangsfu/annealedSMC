@@ -401,20 +401,13 @@ public class SMCSamplerExperiments implements Runnable
 				LogInfo.end_track();
 
 				ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
-//				proposalOptions.useGlobalMultiplicativeBranchProposal=false;
+				proposalOptions.multiplicativeBranchProposalScaling=2;
 				proposalOptions.useSubtreePruningRegraftingProposal=false;
-//				proposalOptions.useStochasticNearestNeighborInterchangeProposal=false;
 				if(MSAParser.parseMSA(instance.data).nTaxa()<4)  proposalOptions.useStochasticNearestNeighborInterchangeProposal=false;
 				else
 					proposalOptions.useStochasticNearestNeighborInterchangeProposal=true;
-				
-//				if(MSAParser.parseMSA(instance.data).nTaxa()<4) 
-				proposalOptions.useStochasticNearestNeighborInterchangeProposalWithNbrsResampling=false;
-//				else 
-//					proposalOptions.useStochasticNearestNeighborInterchangeProposalWithNbrsResampling=true;
-				proposalOptions.multiplicativeBranchProposalScaling=2;
+                proposalOptions.useStochasticNearestNeighborInterchangeProposalWithNbrsResampling=true;
 				proposalOptions.useGlobalMultiplicativeBranchProposal=true;
-//				proposalOptions.useMultiplicativeBranchProposal=false;
 				
 				LinkedList<ProposalDistribution> proposalDistributions = new LinkedList<ProposalDistribution>();
 				// ParticleKernel<UnrootedTreeState> ppk

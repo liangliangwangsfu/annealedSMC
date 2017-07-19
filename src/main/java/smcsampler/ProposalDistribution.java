@@ -206,7 +206,10 @@ public interface ProposalDistribution
 			if (resampleNbrEdges)
 				for (UnorderedPair<Taxon, Taxon> nbrEdge : proposedTree
 						.nbrEdges(edge)) {
-					final double m = Sampling.nextDouble(rand, 1.0 / a, a);
+					//final double m = Sampling.nextDouble(rand, 1.0 / a, a);
+					double lambda=2*Math.log(a);
+					double rvUnif = Sampling.nextDouble(rand, 0, 1);
+					double m  = Math.exp(lambda*(rvUnif-0.5));	
 					Pair<UnrootedTree, Double> p = MultiplicativeBranchProposal
 							.propose(proposedTree, rand, nbrEdge, m);
 					proposedTree = p.getFirst();

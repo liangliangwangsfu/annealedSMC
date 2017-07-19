@@ -406,7 +406,7 @@ public class SMCSamplerExperiments implements Runnable
 				if(MSAParser.parseMSA(instance.data).nTaxa()<4)  proposalOptions.useStochasticNearestNeighborInterchangeProposal=false;
 				else
 					proposalOptions.useStochasticNearestNeighborInterchangeProposal=true;
-                proposalOptions.useStochasticNearestNeighborInterchangeProposalWithNbrsResampling=true;
+                proposalOptions.useStochasticNearestNeighborInterchangeProposalWithNbrsResampling=true;				
 				proposalOptions.useGlobalMultiplicativeBranchProposal=true;
 				
 				LinkedList<ProposalDistribution> proposalDistributions = new LinkedList<ProposalDistribution>();

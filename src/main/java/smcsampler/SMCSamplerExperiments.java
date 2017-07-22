@@ -180,7 +180,7 @@ public class SMCSamplerExperiments implements Runnable
 									int nIter = Integer.MIN_VALUE;
 									for (int l = 0; l < nRun; l++) {
 										double iterScale = iterScalings.get(i);
-										if(m == InferenceMethod.MB && nMrBayesIter>0) iterScale=nMrBayesIter;
+										if((m == InferenceMethod.MB || m == InferenceMethod.MCMC)&& nMrBayesIter>0) iterScale=nMrBayesIter;
 										LogInfo.track("Current method:" + m + " with iterScale=" + iterScale + " (i.e. " + (iterScale * nThousandIters * 1000.0) + " iterations)");
 
 										DescriptiveStatisticsMap<String> stats = new DescriptiveStatisticsMap<String>();
@@ -401,14 +401,9 @@ public class SMCSamplerExperiments implements Runnable
 				LogInfo.end_track();
 
 				ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
-				proposalOptions.multiplicativeBranchProposalScaling=2;
-				proposalOptions.useSubtreePruningRegraftingProposal=false;
 				if(MSAParser.parseMSA(instance.data).nTaxa()<4)  proposalOptions.useStochasticNearestNeighborInterchangeProposal=false;
 				else
-					proposalOptions.useStochasticNearestNeighborInterchangeProposal=true;
-                proposalOptions.useStochasticNearestNeighborInterchangeProposalWithNbrsResampling=true;				
-				proposalOptions.useGlobalMultiplicativeBranchProposal=true;
-				
+					proposalOptions.useStochasticNearestNeighborInterchangeProposal=true;				
 				LinkedList<ProposalDistribution> proposalDistributions = new LinkedList<ProposalDistribution>();
 				// ParticleKernel<UnrootedTreeState> ppk
 				AnnealingKernel ppk = new AnnealingKernel(ncts, 1.0/instance.nAnnealing, proposalDistributions, proposalOptions);				

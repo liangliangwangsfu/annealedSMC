@@ -23,6 +23,7 @@ import pty.io.Dataset.DatasetUtils;
 import pty.io.TreeEvaluator;
 import pty.io.TreeEvaluator.TreeMetric;
 import pty.mcmc.PhyloSampler;
+import pty.mcmc.ProposalDistribution;
 //import pty.mcmc.ProposalDistribution;
 import pty.mcmc.UnrootedTreeState;
 import pty.pmcmc.PhyloPFSchedule;
@@ -308,7 +309,15 @@ public class SMCSamplerExperiments implements Runnable
 				samplerMain.alignmentInputFile = instance.data;
 				samplerMain.st = instance.sequenceType;
 				PhyloSampler._defaultPhyloSamplerOptions.nIteration = (int) (iterScale * instance.nThousandIters * 1000);
-				samplerMain.run();
+				double[] temperatureSchedule = new double[]{1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0};
+				samplerMain.setTemperatureSchedule(temperatureSchedule);
+				samplerMain.computeLogZUsingSteppingStone=true;
+				samplerMain.setnSamplesEachChain(PhyloSampler._defaultPhyloSamplerOptions.nIteration);
+				samplerMain.run();			
+				
+				instance.logZout.println(CSV.body(treeName,"MCMC", "NA",
+						samplerMain.getLogZ()));
+				instance.logZout.flush();				
 				return  samplerMain.tdp;
 			}
 		},		 

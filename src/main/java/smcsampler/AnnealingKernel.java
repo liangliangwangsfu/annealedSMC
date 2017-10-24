@@ -107,7 +107,7 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 			double logTargetDenCurrent=logTargetDensity(newtemperature,current);
 			proposedState = current.copyAndChange(result.getFirst());
 			final double logProposalRatio = result.getSecond();
-			double logLikRatio = logTargetDensity(newtemperature,proposedState) -logTargetDenCurrent;  				
+			double logLikRatio = logTargetDensity(newtemperature,proposedState) - logTargetDenCurrent;  				
 			final double ratio = Math.min(1,
 					Math.exp(logProposalRatio + logLikRatio));
 			if (Double.isNaN(ratio))

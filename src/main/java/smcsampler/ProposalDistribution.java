@@ -80,6 +80,29 @@ public interface ProposalDistribution
 			Collections.shuffle(result, rand);
 			return result;
 		}
+		
+		//new added function//
+		public static List<ProposalDistribution> proposalList(Options options,
+				Random rand) {
+			List<ProposalDistribution> result = new ArrayList<ProposalDistribution>();
+			if (options.useMultiplicativeBranchProposal)
+				result.add(new MultiplicativeBranchProposal(
+						options.multiplicativeBranchProposalScaling, false));
+			if (options.useGlobalMultiplicativeBranchProposal)
+				result.add(new MultiplicativeBranchProposal(
+						options.multiplicativeBranchProposalScaling, true));
+			if (options.useStochasticNearestNeighborInterchangeProposal)
+				result.add(new StochasticNearestNeighborInterchangeProposal());
+			if (options.useStochasticNearestNeighborInterchangeProposalWithNbrsResampling)
+				result.add(new StochasticNearestNeighborInterchangeProposal(
+						true, options.multiplicativeBranchProposalScaling));
+			if (options.useSubtreePruningRegraftingProposal)
+				result.add(new SubtreePruningRegraftingProposal());
+			if (options.useIndepBranchProp)
+				result.add(new IndepBranchProposal());
+			Collections.shuffle(result, rand);
+			return result;
+		}
 	}
 
 	public static class IndepBranchProposal implements ProposalDistribution {

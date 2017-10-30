@@ -10,6 +10,7 @@ import java.util.Queue;
 import java.util.Random;
 import com.google.common.collect.Lists;
 import pty.UnrootedTree;
+import pty.mcmc.ProposalDistribution;
 //import pty.mcmc.ProposalDistribution;
 import pty.mcmc.UnrootedTreeState;
 import fig.basic.Option;

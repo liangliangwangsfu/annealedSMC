@@ -20,6 +20,7 @@ import nuts.lang.StringUtils;
 import pty.RootedTree;
 import pty.RootedTree.RootedTreeProcessor;
 import fig.basic.IOUtils;
+import fig.basic.LogInfo;
 import fig.basic.Option;
 
 
@@ -38,6 +39,7 @@ public class MrBayes implements Runnable
 	@Option public boolean setFixCoalescentPr = true;
 	@Option public boolean fixNucleotideFreq = false;
 	@Option public boolean set2nst = false;
+	@Option public boolean setJC=false;
 	@Option public boolean setGTRGammaI = false;
 	@Option public boolean setInv = false;
 	@Option public boolean fixGTRGammaPara=false;
@@ -54,7 +56,7 @@ public class MrBayes implements Runnable
 	@Option public SequenceType st = SequenceType.RNA;
 	@Option public File alignmentInputFile = null;
 
-	private final int numberOfProposals=3; 
+ 
 	private File  workingDir = null;
 	private String starttreeString="";
 
@@ -80,12 +82,11 @@ public class MrBayes implements Runnable
 		NexusWriter.writeNexus(alignment, nexusFile, st);
 		writeMrBayesCmd_(mrBayesCmd,true);    
 		String msg = IO.call("" + mrBayesPath + " " + mrBayesCmd.getName(), null, workingDir);		
-		writeToDisk(new File(workingDir, "mrbayes-stdout"), msg);
-//		LogInfo.logs("grep Mean: "+mrBayesFolder+"/time=*/mrbayes-stdout |awk {'print $3'}");
-		String marginalLikeMean = IO.call("grep Mean: "+workingDir+"/mrbayes-stdout", null, workingDir);		
-//		String marginalLikeMean = IO.call("grep 1     -  "+workingDir+"/mrbayes-stdout", null, workingDir);	
-		System.out.println(marginalLikeMean);
-		return marginalLikeMean.substring(marginalLikeMean.indexOf(":")+1, marginalLikeMean.indexOf(".")+3);
+		writeToDisk(new File(workingDir, "mrbayes-stdout"), msg);		
+//		LogInfo.track("grep \"1\\s\\s*\\s[-][A-Za-z0-9\\.]*\"  "+workingDir+"/mrbayes-stdout");
+		//LogInfo.end_track();
+		String marginalLikeMean = IO.call("bash -s", "grep \"1\\s\\s*\\s[-][A-Za-z0-9\\.]*\"  "+workingDir+"/mrbayes-stdout | awk {'print $2'}",  workingDir);		
+		return marginalLikeMean; 
 	}
 
 	
@@ -150,8 +151,8 @@ public class MrBayes implements Runnable
 		return trans;
 	}
 	private static final Pattern translPattern = Pattern.compile("\\s*([0-9]+)\\s(.*)[,;]");
-    private static final Pattern newickPattern = Pattern.compile(".*[=]\\s(.*)[;]");	
-    
+    private static final Pattern newickPattern = Pattern.compile(".*[=]\\s(.*)[;]");
+  
 	//  private static final Pattern speciesCode = Pattern.compile("[;)]([0-9]+)[:]");
 	private static RootedTree parseTree(String line,
 			Map<String, String> translation)
@@ -210,13 +211,14 @@ public class MrBayes implements Runnable
 						"mcmcp Nchains=" + nChains + ";\n" +
 //						"mcmcp seed=" + Math.abs(seed) + ";\n" +
 						"set seed=" + Math.abs(seed) + ";\n" +  
-						"set scientific=no;\n"+
-						(setGTRGammaI?" lset nst=6 rates="+(setInv?"invgamma":"gamma")+" ngammacat=4;\n"+"prset tratiopr = beta(1, 1);\n":"")+
-						(set2nst?"lset nst=2;\n"+"prset tratiopr = beta(1, 1);\n":"lset nst=6;\n")+
-						(fixNucleotideFreq?"prset statefreqpr=fixed(0.25,0.25,0.25,0.25);\n":"")+        
-						(setToK2P ? "prset revmatpr=fixed(" + b4 +"," + a4 + "," + b4 + "," + b4 +"," + a4 + "," + b4 + ");\n":"")+
-						(fixtratioInMb? "prset tratiopr = fixed("+mb_trans2tranv+");\n":"")+
-						(fixGTRGammaPara?fixGtrGammaStr:"")+
+						"set scientific=no;\n"+					
+						(setJC?"lset nst=1 rates=equal;\n":
+							  (setGTRGammaI?" lset nst=6 rates="+(setInv?"invgamma":"gamma")+" ngammacat=4;\n"+"prset tratiopr = beta(1, 1);\n":"")+
+								(set2nst?"lset nst=2;\n"+"prset tratiopr = beta(1, 1);\n":"lset nst=6;\n")+						        
+								(setToK2P ? "prset revmatpr=fixed(" + b4 +"," + a4 + "," + b4 + "," + b4 +"," + a4 + "," + b4 + ");\n":"")+
+								(fixtratioInMb? "prset tratiopr = fixed("+mb_trans2tranv+");\n":"")+
+								(fixGTRGammaPara?fixGtrGammaStr:""))+
+						(fixNucleotideFreq?"prset statefreqpr=fixed(0.25,0.25,0.25,0.25);\n":"")+						
 						(setstarttree?("startvals  tau = starttree;\n"+
 								"startvals  V = starttree;\n"):"")+
 						"propset NNI(Tau,V)$prob="+(useNNI?25:0)+";\n"+
@@ -225,7 +227,7 @@ public class MrBayes implements Runnable
 						"propset TLMultiplier(V)$prob=25;\n"+
 						"propset ExtSPR(Tau,V)$prob=0; \n"+		
 						"propset ParsSPR(Tau,V)$prob=0; \n"+
-						//"propset ExtTBR(Tau,V)$prob=0; \n"+														
+						"propset ExtTBR(Tau,V)$prob=0; \n"+														
 					(setSSinMB?" ss alpha=0.3 nsteps=50;\n":"mcmc;\n" +
 								"sumt burnin="+((int)(ngenNum*0.05))+";\n")+								 
 				"end;\n");

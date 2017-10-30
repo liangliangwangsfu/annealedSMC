@@ -26,7 +26,7 @@ public class SteppingStone<P extends AnnealedParticle> implements AnnealingTypeA
   
   @Arg                                  @DefaultValue("FixedTemperatureSchedule")
   public TemperatureSchedule temperatureSchedule = new FixedTemperatureSchedule();
-  
+ 
   @Arg               @DefaultValue("1")
   public Random random = new Random(1);
   

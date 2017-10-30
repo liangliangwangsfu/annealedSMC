@@ -5,12 +5,7 @@ apply plugin: "org.xtext.xtend"
 
 buildscript {
   repositories {
-    maven { url "https://github.com/ben-manes/gradle-versions-plugin/raw/mvnrepo" }
     mavenCentral()
-  }
-
-  dependencies {
-    classpath 'com.github.ben-manes:gradle-versions-plugin:0.5-beta-1'
   }
 }
 
@@ -75,10 +70,6 @@ compile group: 'com.google.guava', name: 'guava', version: '19.0'
   compile group: 'ca.ubc.stat', name: 'bayonet', version: '4.0.3' 
   compile group: 'ca.ubc.stat', name: 'inits', version: '2.6.3'
 }
-
-
-
-apply plugin: 'versions'
 
 task sourcesJar(type: Jar, dependsOn: classes) {
     classifier = 'sources'

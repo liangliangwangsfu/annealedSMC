@@ -55,7 +55,7 @@ class TestUnbiasness {
     println(approximationAlgo.class.simpleName)
     val hmm = new HMM => [
       len = 2
-      inPlace = false
+      inPlace = true
       parameters = new SimpleTwoStates
     ]
     println("observations = " + hmm.observations)

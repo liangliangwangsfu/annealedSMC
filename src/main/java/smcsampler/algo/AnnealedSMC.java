@@ -3,7 +3,6 @@ package smcsampler.algo;
 import java.util.Arrays;
 
 import baselines.AnnealingTypeAlgorithm;
-import bayonet.distributions.ExhaustiveDebugRandom;
 import bayonet.distributions.Random;
 import bayonet.smc.ParticlePopulation;
 import bayonet.smc.ResamplingScheme;
@@ -57,8 +56,6 @@ public class AnnealedSMC<P extends AnnealedParticle> implements AnnealingTypeAlg
   
   private ParticlePopulation<P> resample(Random random, ParticlePopulation<P> population)
   {
-    if (kernels.inPlace() && random instanceof ExhaustiveDebugRandom)
-      throw new RuntimeException();
     population = population.resample(random, resamplingScheme);
     if (kernels.inPlace())
     {

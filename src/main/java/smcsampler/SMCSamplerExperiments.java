@@ -46,6 +46,7 @@ import goblin.Taxon;
 public class SMCSamplerExperiments implements Runnable
 {
 	@Option public boolean resampleRoot = false;
+	@Option public boolean useLIS = false;
 	@Option public InferenceMethod refMethod = InferenceMethod.MB;
 	@Option public double nThousandIters = 10;
 	@Option public ArrayList<InferenceMethod> methods = list(Arrays.asList(InferenceMethod.ANNEALING,InferenceMethod.MB));
@@ -56,6 +57,7 @@ public class SMCSamplerExperiments implements Runnable
 	@Option public double treeRatePrior=1.0;
 	public static ev.ex.DataGenerator.DataGeneratorMain generator = new ev.ex.DataGenerator.DataGeneratorMain();
 	public static PhyloSamplerMain samplerMain = new PhyloSamplerMain();
+	public static LinkedImportanceSampling LISMain = new LinkedImportanceSampling();
 	@Option 	public static Random mainRand  = new Random(3);
 	@Option public boolean verbose = false;
 	@Option public int nThreads = 1;
@@ -279,6 +281,7 @@ public class SMCSamplerExperiments implements Runnable
 		out.close();
 		logZout.close();
 	}
+	
 
 
 	public static double numericalIntegratedMarginalLikelihood(Random rand, UnrootedTreeState ncts, double rate, int K)
@@ -309,19 +312,35 @@ public class SMCSamplerExperiments implements Runnable
 				samplerMain.st = instance.sequenceType;
 				PhyloSampler._defaultPhyloSamplerOptions.nIteration = (int) (iterScale * instance.nThousandIters * 1000);
 				//double[] temperatureSchedule = new double[]{1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0};
-				int Ntemperature = 5;
+				int Ntemperature = 10;
 				double alpha = 0.3;
 				samplerMain.setTemperatureSchedule(Ntemperature, alpha);
 				samplerMain.computeLogZUsingSteppingStone=true;
 				samplerMain.setnSamplesEachChain(PhyloSampler._defaultPhyloSamplerOptions.nIteration);
+				samplerMain.setLogZ(0.0);
 				samplerMain.run();			
 				
 				instance.logZout.println(CSV.body(treeName,"MCMC", "NA",
 						samplerMain.getLogZ()));
-				instance.logZout.flush();				
+				instance.logZout.flush();
+				
+				if(instance.useLIS == true) {
+					LinkedImportanceSampling._defaultPhyloSamplerOptions.rand = mainRand;
+					LISMain.alignmentInputFile = instance.data;
+					LISMain.st = instance.sequenceType;
+					LISMain.nSamplesEachChain = ((int) (iterScale * instance.nThousandIters * 1000));
+					LISMain.setnSamplesEachChain(LISMain.nSamplesEachChain);
+					LISMain.nChains = 10;
+					LISMain.alpha = 0.3;
+					LISMain.run();	
+					instance.logZout.println(CSV.body(treeName,"LIS", "NA",
+							LISMain.getNormalizer()));
+					instance.logZout.flush();	
+				}
+					
 				return  samplerMain.tdp;
 			}
-		},		 
+		},	
 		MB {
 			@Override
 			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance,

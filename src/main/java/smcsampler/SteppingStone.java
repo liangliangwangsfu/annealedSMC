@@ -36,22 +36,22 @@ import pty.smc.models.CTMC.GTRIGammaCTMC;
 
 
 
-public class LinkedImportanceSampling implements Runnable{
+public class SteppingStone implements Runnable{
 	@Option public File alignmentInputFile = null;
 	@Option public SequenceType st = SequenceType.DNA;
+	@Option public int nSamplesEachChain = 10000;
 	@Option public int nChains = 13;
 	@Option public double alpha = 0.3;
 	@Option public double GammapriorRatio = 10.0;
-	@Option public int nSamplesEachChain = 1000;
-	private int nSamples = (int)(nSamplesEachChain*0.8);
-	private int nburn = nSamplesEachChain - nSamples;
+	
 	
 	public static class Options{
 	    @Option public Prior prior = Prior.EXP;
 	    @Option public Random rand = new Random(1);
 	}
 		
-	
+	private int nSamples = (int)(nSamplesEachChain*0.8);
+	private int nburn = nSamplesEachChain - nSamples;
 	private double logZ = 0.0;
 
 	private Gamma exponentialPrior = Gamma.exponential(GammapriorRatio);
@@ -65,6 +65,7 @@ public class LinkedImportanceSampling implements Runnable{
 		 int nburn=nSamplesEachChain-nSamples;    
 		 System.out.println(nChains);
 		 System.out.println(nSamples);
+		 System.out.println(nSamplesEachChain);
 		 MSAPoset align = MSAParser.parseMSA(alignmentInputFile);
 		 Dataset data = Dataset.DatasetUtils.fromAlignment(align, st);
 		 CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(data.nSites(), 2);	
@@ -82,7 +83,7 @@ public class LinkedImportanceSampling implements Runnable{
 	}*/
 	
 	
-	private static int LinkedIndex(List<Double> sampleLoglikelihood, double temperature1, double temperature2, int nSamples) {
+/*	private static int LinkedIndex(List<Double> sampleLoglikelihood, double temperature1, double temperature2, int nSamples) {
 		int index = -1;
 		double[] probability = new double[nSamples];
 		double[] logtemp = new double[nSamples];
@@ -93,31 +94,27 @@ public class LinkedImportanceSampling implements Runnable{
 		probability = normalizeWeights(logtemp);
 		index = Multinomial.sampleMultinomial(r, probability); 
 		return(index);
-	}
+	}*/
 	
 	
-	private static double logNormalizer(List<Double> Loglikelihood1, List<Double> Loglikelihood2, double temperature1, double temperature2, int nSamples) {
+	private static double logNormalizer(List<Double> Loglikelihood, double temperature1, double temperature2, int nSamples) {
 		double out = 0.0;
-		double[] logterm1 = new double[nSamples];
-		double[] logterm2 = new double[nSamples];
-		double term1 = 0.0;
-		double term2 = 0.0;
+		double[] logterm = new double[nSamples];
+		double term = 0.0;
 		for(int i = 0; i < nSamples; i++) {
-			logterm1[i] = (temperature2 - temperature1)/2*Loglikelihood1.get(i);
-			logterm2[i] = (temperature1 - temperature2)/2*Loglikelihood2.get(i);		
-			term1 = term1 + Math.exp(logterm1[i]);
-			term2 = term2 + Math.exp(logterm2[i]);			
-		}		
-		out = Math.log(term1) - Math.log(term2);
+			logterm[i] = (temperature2 - temperature1)*Loglikelihood.get(i);
+			term = term + Math.exp(logterm[i]);		
+		}
+		
+		out = Math.log(term) - Math.log(1.0*nSamples);
 		return(out);
 	}
 	
-	
-	private static Pair<List<UnrootedTree>, List<Double>>propagation(UnrootedTree sample, double sampleLoglikelihood, double temperature, int nburn, int nSamples, CTMC ctmc, Dataset data, StandardNonClockPriorDensity priorDensity) {
+	private static Pair<List<UnrootedTree>, List<Double>>propagation(MSAPoset  msa, double temperature, int nburn, int nSamples, CTMC ctmc, Dataset data, StandardNonClockPriorDensity priorDensity) {
 		List<UnrootedTree> proposedSample = new ArrayList();
 		List<Double> proposedLoglikelihood = new ArrayList();
-		//proposedLoglikelihood.add(sampleLoglikelihood);
 		Random r = new Random();
+		UnrootedTree sample = initTree(r, msa.taxa());;
 		UnrootedTreeState temp = UnrootedTreeState.initFastState(sample, data, ctmc, priorDensity);
 
 		UnrootedTreeState proposedState = null;
@@ -238,54 +235,49 @@ public class LinkedImportanceSampling implements Runnable{
 	}
 	
 
-	public void LinkedIS(MSAPoset  msa, Dataset data, CTMC ctmc, int nChains, double alpha) {
+	public void SteppingStone(MSAPoset  msa, Dataset data, CTMC ctmc, int nChains, double alpha) {
 		Random r =  new Random();
 		Pair<List<UnrootedTree>, List<Double>> proposedState = null;
-		Pair<List<UnrootedTree>, List<Double>> proposedState1 = null;
+		//Pair<List<UnrootedTree>, List<Double>> proposedState1 = null;
 		List<UnrootedTree> proposedSample = new ArrayList<UnrootedTree>();
-		List<UnrootedTree> proposedSample1 = new ArrayList<UnrootedTree>();
+		//List<UnrootedTree> proposedSample1 = new ArrayList<UnrootedTree>();
 		List<Double> proposedLoglikelihood = new ArrayList<Double>();
-		List<Double> proposedLoglikelihood1 = new ArrayList<Double>();
+		//List<Double> proposedLoglikelihood1 = new ArrayList<Double>();
 
 		final double[] temperatureSchedule = SStempScheme.Evenly.generateTemp(nChains, alpha);
-		UnrootedTree LinkedTree = initTree(r, msa.taxa());
+		//UnrootedTree LinkedTree = initTree(r, msa.taxa());
 		UnrootedTree initTree = null;
 		UnrootedTreeState initTreeState = null;
-		double LinkedTreeLoglikelihood = 0.0;
-		int I = (int)(r.nextDouble()*nSamples);
+		//double LinkedTreeLoglikelihood = 0.0;
+		//int I = (int)(r.nextDouble()*nSamples);
 
 		for(int i = 0; i < nSamples; i++) {
 			initTree = initTree(r, msa.taxa());
-			proposedSample.add(LinkedTree);	
+			//proposedSample.add(LinkedTree);	
 		    initTreeState = UnrootedTreeState.initFastState(initTree, data, ctmc, priorDensity);
 			proposedLoglikelihood.add(initTreeState.getLogLikelihood());
 		}
-		LinkedTree = proposedSample.get(I);
-		UnrootedTreeState LinkedState = UnrootedTreeState.initFastState(LinkedTree, data, ctmc, priorDensity);
+		//LinkedTree = proposedSample.get(I);
+		//UnrootedTreeState LinkedState = UnrootedTreeState.initFastState(LinkedTree, data, ctmc, priorDensity);
 		
-		double t1 = temperatureSchedule[1];
-		proposedState1 = propagation(LinkedTree, LinkedState.getLogLikelihood(), t1, nburn, nSamples, ctmc, data, priorDensity);
+		///double t1 = 0.0;
+		//proposedState1 = propagation(LinkedTree, LinkedState.getLogLikelihood(), t1, nburn, nSamples, ctmc, data, priorDensity);
 		
-		logZ = logZ + logNormalizer(proposedLoglikelihood, proposedState1.getSecond(), temperatureSchedule[0], temperatureSchedule[1], nSamples);
+		logZ = logZ + logNormalizer(proposedLoglikelihood, temperatureSchedule[0], temperatureSchedule[1], nSamples);
 		
 		System.out.println(logZ);
 
 		for(int t = 2; t < nChains; t++) {
-			proposedState = proposedState1;
-			t1 = temperatureSchedule[t];
-			I = LinkedIndex(proposedState.getSecond(), temperatureSchedule[t-1], t1, nSamples);
-			LinkedTree = proposedState.getFirst().get(I);
-			LinkedTreeLoglikelihood = proposedState.getSecond().get(I);
-			proposedState1 = propagation(LinkedTree, LinkedTreeLoglikelihood, t1, nburn, nSamples, ctmc, data, priorDensity);
-			logZ = logZ + logNormalizer(proposedState.getSecond(), proposedState1.getSecond(), temperatureSchedule[t-1], t1, nSamples);
+			proposedState = null;
+			//t1 = temperatureSchedule[t-1];
+			proposedState = propagation(msa, temperatureSchedule[t-1], nburn, nSamples, ctmc, data, priorDensity);
+			logZ = logZ + logNormalizer(proposedState.getSecond(), temperatureSchedule[t-1], temperatureSchedule[t], nSamples);
 			System.out.println(logZ);
 		}
 	}
 	
 	public void setnSamplesEachChain(int nSamplesEachChain) {
 		this.nSamplesEachChain = nSamplesEachChain;
-		this.nSamples = (int)(nSamplesEachChain*0.8);
-		this.nburn = nSamplesEachChain - nSamples;
 	}
 	
 	public void setnChains(int nChains) {
@@ -326,10 +318,10 @@ public class LinkedImportanceSampling implements Runnable{
 /*		for(int i = 0; i < T; i++ ) {
 			System.out.println(temperatureSchedule[i]);
 		}*/
-		LinkedImportanceSampling newrun = new LinkedImportanceSampling();
-		int nChains = 5;
+		SteppingStone newrun = new SteppingStone();
+		int nChains = 20;
 		double alpha = 0.3;
-		newrun.LinkedIS(msa, data, ctmc, nChains, alpha);
+		newrun.SteppingStone(msa, data, ctmc, nChains, alpha);
 		double logZ = newrun.getNormalizer();
 		System.out.println(logZ);
 

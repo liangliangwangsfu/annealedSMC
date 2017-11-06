@@ -47,6 +47,7 @@ public class SMCSamplerExperiments implements Runnable
 {
 	@Option public boolean resampleRoot = false;
 	@Option public boolean useLIS = false;
+	@Option public boolean usenewSS = false;
 	@Option public InferenceMethod refMethod = InferenceMethod.MB;
 	@Option public double nThousandIters = 10;
 	@Option public ArrayList<InferenceMethod> methods = list(Arrays.asList(InferenceMethod.ANNEALING,InferenceMethod.MB));
@@ -58,6 +59,7 @@ public class SMCSamplerExperiments implements Runnable
 	public static ev.ex.DataGenerator.DataGeneratorMain generator = new ev.ex.DataGenerator.DataGeneratorMain();
 	public static PhyloSamplerMain samplerMain = new PhyloSamplerMain();
 	public static LinkedImportanceSampling LISMain = new LinkedImportanceSampling();
+	public static SteppingStone ssMain = new SteppingStone();
 	@Option 	public static Random mainRand  = new Random(3);
 	@Option public boolean verbose = false;
 	@Option public int nThreads = 1;
@@ -310,10 +312,11 @@ public class SMCSamplerExperiments implements Runnable
 				PhyloSampler._defaultPhyloSamplerOptions.rand = mainRand;
 				samplerMain.alignmentInputFile = instance.data;
 				samplerMain.st = instance.sequenceType;
-				PhyloSampler._defaultPhyloSamplerOptions.nIteration = (int) (iterScale * instance.nThousandIters * 1000);
-				//double[] temperatureSchedule = new double[]{1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0};
 				int Ntemperature = 10;
 				double alpha = 0.3;
+				PhyloSampler._defaultPhyloSamplerOptions.nIteration = (int) (iterScale * instance.nThousandIters * 1000/(10.0));
+				//PhyloSampler._defaultPhyloSamplerOptions.nIteration = 10000;
+				//double[] temperatureSchedule = new double[]{1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0};	
 				samplerMain.setTemperatureSchedule(Ntemperature, alpha);
 				samplerMain.computeLogZUsingSteppingStone=true;
 				samplerMain.setnSamplesEachChain(PhyloSampler._defaultPhyloSamplerOptions.nIteration);
@@ -328,13 +331,29 @@ public class SMCSamplerExperiments implements Runnable
 					LinkedImportanceSampling._defaultPhyloSamplerOptions.rand = mainRand;
 					LISMain.alignmentInputFile = instance.data;
 					LISMain.st = instance.sequenceType;
-					LISMain.nSamplesEachChain = ((int) (iterScale * instance.nThousandIters * 1000));
+					LISMain.nSamplesEachChain = ((int) (iterScale * instance.nThousandIters * 1000/(10.0)));
+					//LISMain.nSamplesEachChain = 10000;
 					LISMain.setnSamplesEachChain(LISMain.nSamplesEachChain);
 					LISMain.nChains = 10;
 					LISMain.alpha = 0.3;
 					LISMain.run();	
 					instance.logZout.println(CSV.body(treeName,"LIS", "NA",
 							LISMain.getNormalizer()));
+					instance.logZout.flush();	
+				}
+				
+				if(instance.usenewSS == true) {
+					LinkedImportanceSampling._defaultPhyloSamplerOptions.rand = mainRand;
+					ssMain.alignmentInputFile = instance.data;
+					ssMain.st = instance.sequenceType;
+					ssMain.nSamplesEachChain = ((int) (iterScale * instance.nThousandIters * 1000/(10.0)));
+					//ssMain.nSamplesEachChain = 10000;
+					ssMain.setnSamplesEachChain(ssMain.nSamplesEachChain);
+					ssMain.nChains = 10;
+					ssMain.alpha = 0.3;
+					ssMain.run();	
+					instance.logZout.println(CSV.body(treeName,"SS", "NA",
+							ssMain.getNormalizer()));
 					instance.logZout.flush();	
 				}
 					

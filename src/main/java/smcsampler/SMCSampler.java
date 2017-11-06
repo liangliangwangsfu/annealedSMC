@@ -167,6 +167,7 @@ public final class SMCSampler<S>
 	private List<S> samples;
 	private double[] logWeights;
 	private double[] normalizedWeights;
+	private double[] logIncrementalWeights;
 	private double varLogZ = 0;
 	public List<S> getSamples() {
 		return samples;
@@ -174,6 +175,11 @@ public final class SMCSampler<S>
 	public double[] getLogWeights() {
 		return logWeights;
 	}
+	
+	public double[] getLogIncrementalWeights() {
+		return logIncrementalWeights;
+	}
+	
 	private void propagateAndComputeWeights(final SMCSamplerKernel<S> kernel,
 			final int t)
 	{		
@@ -198,6 +204,7 @@ public final class SMCSampler<S>
 					logWeights[x] = Double.NEGATIVE_INFINITY;
 				} else {
 					samples.set(x, current.getFirst());
+					//logIncrementalWeights[x] = current.getSecond();
 					logWeights[x] = Math.log(normalizedWeights[x])+ current.getSecond();				
 				}
 			}
@@ -219,7 +226,8 @@ public final class SMCSampler<S>
 		samples = new ArrayList<S>(N);
 		S initial = kernel.getInitial();
 		for (int n = 0; n < N; n++) samples.add(initial);
-		logWeights = new double[N]; // init to zero		
+		logWeights = new double[N]; // init to zero	
+		logIncrementalWeights = new double[N]; // init to zero	
 		normalizedWeights = new double[N];
 		for(int i=0;i<normalizedWeights.length;i++) normalizedWeights[i]=1.0/N;
 	}
@@ -293,8 +301,8 @@ public final class SMCSampler<S>
 			if (verbose)
 				LogInfo.track("Particle generation " + (t + 1) , true); 
 			propagateAndComputeWeights(kernel, t);		
-			if(t>0)lognorm += SloppyMath.logAdd(logWeights); 					
-			//				lognorm += logAdd(logWeights);			
+			if(t>0) lognorm += SloppyMath.logAdd(logWeights); 					
+							//lognorm += SloppyMath.logAdd(logIncrementalWeights)-Math.log(1.0*logIncrementalWeights.length);			
 			normalizedWeights = logWeights.clone();
 			NumUtils.expNormalize(normalizedWeights);
 			if (verbose)

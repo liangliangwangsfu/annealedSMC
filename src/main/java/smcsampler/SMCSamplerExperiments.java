@@ -311,6 +311,36 @@ public class SMCSamplerExperiments implements Runnable
 			@Override
 			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
 			{
+				if(instance.useLIS == true) {
+					LinkedImportanceSampling._defaultPhyloSamplerOptions.rand = mainRand;
+					LISMain.alignmentInputFile = instance.data;
+					LISMain.st = instance.sequenceType;
+					LISMain.nSamplesEachChain = ((int) (iterScale * instance.nThousandIters * 1000/(1.0*instance.ntempSS)));
+					//LISMain.nSamplesEachChain = 10000;
+					LISMain.setnSamplesEachChain(LISMain.nSamplesEachChain);
+					LISMain.nChains = instance.ntempSS;
+					LISMain.alpha = 1.0/3.0;
+					LISMain.run();	
+					instance.logZout.println(CSV.body(treeName,"LIS", "NA",
+							LISMain.getNormalizer()));
+					instance.logZout.flush();	
+				}
+				
+				if(instance.usenewSS == true) {
+					LinkedImportanceSampling._defaultPhyloSamplerOptions.rand = mainRand;
+					ssMain.alignmentInputFile = instance.data;
+					ssMain.st = instance.sequenceType;
+					ssMain.nSamplesEachChain = ((int) (iterScale * instance.nThousandIters * 1000/(1.0*instance.ntempSS)));
+					//ssMain.nSamplesEachChain = 10000;
+					ssMain.setnSamplesEachChain(ssMain.nSamplesEachChain);
+					ssMain.nChains = instance.ntempSS;
+					ssMain.alpha = 1.0/3.0;
+					ssMain.run();	
+					instance.logZout.println(CSV.body(treeName,"SS", "NA",
+							ssMain.getNormalizer()));
+					instance.logZout.flush();	
+				}
+				
 				PhyloSampler._defaultPhyloSamplerOptions.rand = mainRand;
 				samplerMain.alignmentInputFile = instance.data;
 				samplerMain.st = instance.sequenceType;
@@ -329,35 +359,7 @@ public class SMCSamplerExperiments implements Runnable
 						samplerMain.getLogZ()));
 				instance.logZout.flush();
 				
-				if(instance.useLIS == true) {
-					LinkedImportanceSampling._defaultPhyloSamplerOptions.rand = mainRand;
-					LISMain.alignmentInputFile = instance.data;
-					LISMain.st = instance.sequenceType;
-					LISMain.nSamplesEachChain = ((int) (iterScale * instance.nThousandIters * 1000/(1.0*instance.ntempSS)));
-					//LISMain.nSamplesEachChain = 10000;
-					LISMain.setnSamplesEachChain(LISMain.nSamplesEachChain);
-					LISMain.nChains = instance.ntempSS;
-					LISMain.alpha = 0.3;
-					LISMain.run();	
-					instance.logZout.println(CSV.body(treeName,"LIS", "NA",
-							LISMain.getNormalizer()));
-					instance.logZout.flush();	
-				}
-				
-				if(instance.usenewSS == true) {
-					LinkedImportanceSampling._defaultPhyloSamplerOptions.rand = mainRand;
-					ssMain.alignmentInputFile = instance.data;
-					ssMain.st = instance.sequenceType;
-					ssMain.nSamplesEachChain = ((int) (iterScale * instance.nThousandIters * 1000/(1.0*instance.ntempSS)));
-					//ssMain.nSamplesEachChain = 10000;
-					ssMain.setnSamplesEachChain(ssMain.nSamplesEachChain);
-					ssMain.nChains = instance.ntempSS;
-					ssMain.alpha = 0.3;
-					ssMain.run();	
-					instance.logZout.println(CSV.body(treeName,"SS", "NA",
-							ssMain.getNormalizer()));
-					instance.logZout.flush();	
-				}
+
 					
 				return  samplerMain.tdp;
 			}

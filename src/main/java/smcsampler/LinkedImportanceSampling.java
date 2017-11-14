@@ -46,6 +46,12 @@ public class LinkedImportanceSampling implements Runnable{
 	private int nSamples = (int)(nSamplesEachChain*0.8);
 	private int nburn = nSamplesEachChain - nSamples;
 	
+	public void setnSamplesEachChain(int nSamplesEachChain) {
+		this.nSamplesEachChain = nSamplesEachChain;
+		this.nSamples = (int)(nSamplesEachChain*0.8);
+		this.nburn = nSamplesEachChain - nSamples;
+	}
+	
 	public static class Options{
 	    @Option public Prior prior = Prior.EXP;
 	    @Option public Random rand = new Random(1);
@@ -68,7 +74,7 @@ public class LinkedImportanceSampling implements Runnable{
 		 MSAPoset align = MSAParser.parseMSA(alignmentInputFile);
 		 Dataset data = Dataset.DatasetUtils.fromAlignment(align, st);
 		 CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(data.nSites(), 2);	
-		 newrun.LinkedIS(align, data, ctmc, nChains, alpha);
+		 newrun.LinkedIS(align, data, ctmc, nChains, nSamplesEachChain, alpha);
 		 double logZ = newrun.getNormalizer();
 		 estimateNormalizer(logZ);
 		 //newrun.estimateNormalizer(logZ);		 
@@ -238,7 +244,8 @@ public class LinkedImportanceSampling implements Runnable{
 	}
 	
 
-	public void LinkedIS(MSAPoset  msa, Dataset data, CTMC ctmc, int nChains, double alpha) {
+	public void LinkedIS(MSAPoset  msa, Dataset data, CTMC ctmc, int nChains, int nSamplesEachChain, double alpha) {
+		setnSamplesEachChain(nSamplesEachChain);
 		Random r =  new Random();
 		Pair<List<UnrootedTree>, List<Double>> proposedState = null;
 		Pair<List<UnrootedTree>, List<Double>> proposedState1 = null;
@@ -254,6 +261,9 @@ public class LinkedImportanceSampling implements Runnable{
 		double LinkedTreeLoglikelihood = 0.0;
 		int I = (int)(r.nextDouble()*nSamples);
 
+		System.out.println(nSamplesEachChain);
+		System.out.println(nburn);
+		System.out.println(nSamples);
 		for(int i = 0; i < nSamples; i++) {
 			initTree = initTree(r, msa.taxa());
 			proposedSample.add(LinkedTree);	
@@ -280,12 +290,6 @@ public class LinkedImportanceSampling implements Runnable{
 			logZ = logZ + logNormalizer(proposedState.getSecond(), proposedState1.getSecond(), temperatureSchedule[t-1], t1, nSamples);
 			System.out.println(logZ);
 		}
-	}
-	
-	public void setnSamplesEachChain(int nSamplesEachChain) {
-		this.nSamplesEachChain = nSamplesEachChain;
-		this.nSamples = (int)(nSamplesEachChain*0.8);
-		this.nburn = nSamplesEachChain - nSamples;
 	}
 	
 	public void setnChains(int nChains) {
@@ -328,8 +332,9 @@ public class LinkedImportanceSampling implements Runnable{
 		}*/
 		LinkedImportanceSampling newrun = new LinkedImportanceSampling();
 		int nChains = 50;
+		int nSamplesEachChain  = 1000;
 		double alpha = 1.0/3.0;
-		newrun.LinkedIS(msa, data, ctmc, nChains, alpha);
+		newrun.LinkedIS(msa, data, ctmc, nChains, nSamplesEachChain, alpha);
 		double logZ = newrun.getNormalizer();
 		System.out.println(logZ);
 

@@ -53,6 +53,13 @@ public class SteppingStone implements Runnable{
 	private int nSamples = (int)(nSamplesEachChain*0.8);
 	private int nburn = nSamplesEachChain - nSamples;
 	private double logZ = 0.0;
+	
+	public void setnSamplesEachChain(int nSamplesEachChain) {
+		this.nSamplesEachChain = nSamplesEachChain;
+		this.nSamples = (int)(nSamplesEachChain*0.8);
+		this.nburn = nSamplesEachChain - nSamples;
+	}
+	
 
 	private Gamma exponentialPrior = Gamma.exponential(GammapriorRatio);
 	private StandardNonClockPriorDensity priorDensity = new StandardNonClockPriorDensity(
@@ -60,7 +67,7 @@ public class SteppingStone implements Runnable{
 	 @Override
 	  public void run()
 	  {
-		 LinkedImportanceSampling newrun = new LinkedImportanceSampling();
+		 SteppingStone newrun = new SteppingStone();
 		 int nSamples=(int) (nSamplesEachChain*0.8);
 		 int nburn=nSamplesEachChain-nSamples;    
 		 System.out.println(nChains);
@@ -69,7 +76,7 @@ public class SteppingStone implements Runnable{
 		 MSAPoset align = MSAParser.parseMSA(alignmentInputFile);
 		 Dataset data = Dataset.DatasetUtils.fromAlignment(align, st);
 		 CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(data.nSites(), 2);	
-		 newrun.LinkedIS(align, data, ctmc, nChains, alpha);
+		 newrun.SteppingStone(align, data, ctmc, nChains, nSamplesEachChain, alpha);
 		 double logZ = newrun.getNormalizer();
 		 estimateNormalizer(logZ);
 		 //newrun.estimateNormalizer(logZ);		 
@@ -217,7 +224,8 @@ public class SteppingStone implements Runnable{
 	}
 	
 
-	public void SteppingStone(MSAPoset  msa, Dataset data, CTMC ctmc, int nChains, double alpha) {
+	public void SteppingStone(MSAPoset  msa, Dataset data, CTMC ctmc, int nChains, int nSamplesEachChain, double alpha) {
+		setnSamplesEachChain(nSamplesEachChain);
 		Random r =  new Random();
 		Pair<List<UnrootedTree>, List<Double>> proposedState = null;
 		//Pair<List<UnrootedTree>, List<Double>> proposedState1 = null;
@@ -251,10 +259,6 @@ public class SteppingStone implements Runnable{
 			initTreeState =  UnrootedTreeState.initFastState(initTree, data, ctmc, priorDensity);
 			System.out.println(logZ);
 		}
-	}
-	
-	public void setnSamplesEachChain(int nSamplesEachChain) {
-		this.nSamplesEachChain = nSamplesEachChain;
 	}
 	
 	public void setnChains(int nChains) {
@@ -297,8 +301,9 @@ public class SteppingStone implements Runnable{
 		}*/
 		SteppingStone newrun = new SteppingStone();
 		int nChains = 50;
+		int nSamplesEachChain  = 1000;
 		double alpha = 1.0/3.0;
-		newrun.SteppingStone(msa, data, ctmc, nChains, alpha);
+		newrun.SteppingStone(msa, data, ctmc, nChains, nSamplesEachChain, alpha);
 		double logZ = newrun.getNormalizer();
 		System.out.println(logZ);
 

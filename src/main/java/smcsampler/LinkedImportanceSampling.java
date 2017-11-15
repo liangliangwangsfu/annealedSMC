@@ -18,6 +18,7 @@ import goblin.Taxon;
 import ma.MSAParser;
 import ma.MSAPoset;
 import ma.SequenceType;
+import nuts.maxent.SloppyMath;
 import nuts.util.Indexer;
 import pepper.Encodings;
 import pty.RandomRootedTrees;
@@ -111,10 +112,13 @@ public class LinkedImportanceSampling implements Runnable{
 		for(int i = 0; i < nSamples; i++) {
 			logterm1[i] = (temperature2 - temperature1)/2*Loglikelihood1.get(i);
 			logterm2[i] = (temperature1 - temperature2)/2*Loglikelihood2.get(i);		
-			term1 = term1 + Math.exp(logterm1[i]);
-			term2 = term2 + Math.exp(logterm2[i]);			
-		}		
-		out = Math.log(term1) - Math.log(term2);
+			/*term1 = term1 + Math.exp(logterm1[i]);
+			term2 = term2 + Math.exp(logterm2[i]);	
+			System.out.println(term1);
+			System.out.println(term2);*/
+		}	
+		//out = Math.log(term1) - Math.log(term2);
+		out = SloppyMath.logAdd(logterm1) - SloppyMath.logAdd(logterm2);
 		return(out);
 	}
 	

@@ -311,6 +311,7 @@ public class SMCSamplerExperiments implements Runnable
 			@Override
 			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
 			{
+				
 				if(instance.useLIS == true) {
 					LinkedImportanceSampling._defaultPhyloSamplerOptions.rand = mainRand;
 					LISMain.alignmentInputFile = instance.data;

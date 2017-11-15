@@ -18,6 +18,7 @@ import goblin.Taxon;
 import ma.MSAParser;
 import ma.MSAPoset;
 import ma.SequenceType;
+import nuts.maxent.SloppyMath;
 import nuts.util.Indexer;
 import pepper.Encodings;
 import pty.RandomRootedTrees;
@@ -91,10 +92,10 @@ public class SteppingStone implements Runnable{
 		double term = 0.0;
 		for(int i = 0; i < nSamples; i++) {
 			logterm[i] = (temperature2 - temperature1)*Loglikelihood.get(i);
-			term = term + Math.exp(logterm[i]);		
+			//term = term + Math.exp(logterm[i]);		
 		}
-		
-		out = Math.log(term) - Math.log(1.0*nSamples);
+		out = SloppyMath.logAdd(logterm) - Math.log(1.0*nSamples);
+		//out = Math.log(term) - Math.log(1.0*nSamples);
 		return(out);
 	}
 	

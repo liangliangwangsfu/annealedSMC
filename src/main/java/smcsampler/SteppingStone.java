@@ -89,13 +89,11 @@ public class SteppingStone implements Runnable{
 	private static double logNormalizer(List<Double> Loglikelihood, double temperature1, double temperature2, int nSamples) {
 		double out = 0.0;
 		double[] logterm = new double[nSamples];
-		double term = 0.0;
 		for(int i = 0; i < nSamples; i++) {
 			logterm[i] = (temperature2 - temperature1)*Loglikelihood.get(i);
-			//term = term + Math.exp(logterm[i]);		
+			//System.out.println("temperature: "+ temperature1 + " Loglikelihood: "+ Loglikelihood.get(i));
 		}
 		out = SloppyMath.logAdd(logterm) - Math.log(1.0*nSamples);
-		//out = Math.log(term) - Math.log(1.0*nSamples);
 		return(out);
 	}
 	
@@ -110,7 +108,8 @@ public class SteppingStone implements Runnable{
 		UnrootedTreeState proposedState = null;
 		
 		ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
-		List<ProposalDistribution> proposalDistributions = ProposalDistribution.Util.proposalList(proposalOptions, r, temperature);
+		//List<ProposalDistribution> proposalDistributions = ProposalDistribution.Util.proposalList(proposalOptions, r, temperature);
+		List<ProposalDistribution> proposalDistributions = ProposalDistribution.Util.proposalList(proposalOptions, initTree.getNonClockTree(), r);
 		
 		for(int i = 0; i < (nburn + nSamples); i++) {
 			ProposalDistribution nextProposal = proposalDistributions.get(r.nextInt(proposalDistributions
@@ -118,7 +117,7 @@ public class SteppingStone implements Runnable{
 			//System.out.println(nextProposal);
 			proposedState = proposal(r, temp, nextProposal, temperature);
 			temp = proposedState;
-			if(i >= nburn - 1){
+			if(i >= nburn){
 				proposedSample.add(proposedState.getNonClockTree());
 				proposedLoglikelihood.add(proposedState.getLogLikelihood());		
 			}
@@ -132,7 +131,6 @@ public class SteppingStone implements Runnable{
 		return UnrootedTree.fromRooted(TreeGenerators.sampleExpNonclock(rand,leaves, 10.0));				
 	}
 	
-
 	
 	private static double logTargetDensity(double temperature, UnrootedTreeState uts)
 	{
@@ -147,7 +145,7 @@ public class SteppingStone implements Runnable{
 		if (result != null) // might happen e.g. when trying to do nni with 3 leaves
 		{
 			//double logTargetDenCurrent=temperature*current.logLikelihood();
-			double logTargetDenCurrent= logTargetDensity(temperature, current);
+			double logTargetDenCurrent = logTargetDensity(temperature, current);
 			proposedState = current.copyAndChange(result.getFirst());
 			final double logProposalRatio = result.getSecond();
 			//double logLikRatio = temperature*proposedState.getLogLikelihood() - logTargetDenCurrent;  
@@ -205,35 +203,13 @@ public class SteppingStone implements Runnable{
 		return max;		
 	}
 	
-	
-	public static double[] normalizeWeights(double[] logweights) {
-		int N = logweights.length;
-		double[] normalizedweights = new double[N];
-		double maxLogweights  = max(logweights);
-		double[] centralizeWeights = new double[N];
-		double csumweights = 0;
-		for(int i = 0; i < N; i++) {
-			centralizeWeights[i] = Math.exp(logweights[i] - maxLogweights);
-			csumweights = csumweights + centralizeWeights[i];
-		}
-		
-		for(int i = 0; i < N; i++) {
-			normalizedweights[i] = centralizeWeights[i]/csumweights;
-		}
-		
-		return normalizedweights;
-	}
-	
 
 	public void SteppingStone(MSAPoset  msa, Dataset data, CTMC ctmc, int nChains, int nSamplesEachChain, double alpha) {
 		setnSamplesEachChain(nSamplesEachChain);
-		Random r =  new Random();
+		//Random r =  new Random();
 		Pair<List<UnrootedTree>, List<Double>> proposedState = null;
-		//Pair<List<UnrootedTree>, List<Double>> proposedState1 = null;
-		List<UnrootedTree> proposedSample = new ArrayList<UnrootedTree>();
-		//List<UnrootedTree> proposedSample1 = new ArrayList<UnrootedTree>();
+		//List<UnrootedTree> proposedSample = new ArrayList<UnrootedTree>();
 		List<Double> proposedLoglikelihood = new ArrayList<Double>();
-		//List<Double> proposedLoglikelihood1 = new ArrayList<Double>();
 
 		final double[] temperatureSchedule = SStempScheme.Beta.generateTemp(nChains, alpha);
 		UnrootedTree initTree = null;
@@ -241,8 +217,8 @@ public class SteppingStone implements Runnable{
 
 
 		for(int i = 0; i < nSamples; i++) {
+			Random r =  new Random();
 			initTree = initTree(r, msa.taxa());
-			//proposedSample.add(LinkedTree);	
 		    initTreeState = UnrootedTreeState.initFastState(initTree, data, ctmc, priorDensity);
 			proposedLoglikelihood.add(initTreeState.getLogLikelihood());
 		}
@@ -297,9 +273,6 @@ public class SteppingStone implements Runnable{
 		Dataset data = Dataset.DatasetUtils.fromAlignment(msa, sequenceType);
 		CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(data.nSites(), 2);
 		
-/*		for(int i = 0; i < T; i++ ) {
-			System.out.println(temperatureSchedule[i]);
-		}*/
 		SteppingStone newrun = new SteppingStone();
 		int nChains = 50;
 		int nSamplesEachChain  = 1000;

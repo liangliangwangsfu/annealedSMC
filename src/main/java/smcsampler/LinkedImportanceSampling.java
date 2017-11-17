@@ -84,10 +84,6 @@ public class LinkedImportanceSampling implements Runnable{
 	
 	public static PhyloSampler.Options _defaultPhyloSamplerOptions = new PhyloSampler.Options();
 	
-/*	public void setTemperatureSchedule(int nChains, double alpha) {
-		this.temperatureSchedule = SStempScheme.Evenly.generateTemp(nChains, alpha);
-	}*/
-	
 	
 	private static int LinkedIndex(List<Double> sampleLoglikelihood, double temperature1, double temperature2, int nSamples) {
 		int index = -1;
@@ -107,17 +103,10 @@ public class LinkedImportanceSampling implements Runnable{
 		double out = 0.0;
 		double[] logterm1 = new double[nSamples];
 		double[] logterm2 = new double[nSamples];
-		double term1 = 0.0;
-		double term2 = 0.0;
 		for(int i = 0; i < nSamples; i++) {
 			logterm1[i] = (temperature2 - temperature1)/2*Loglikelihood1.get(i);
 			logterm2[i] = (temperature1 - temperature2)/2*Loglikelihood2.get(i);		
-			/*term1 = term1 + Math.exp(logterm1[i]);
-			term2 = term2 + Math.exp(logterm2[i]);	
-			System.out.println(term1);
-			System.out.println(term2);*/
 		}	
-		//out = Math.log(term1) - Math.log(term2);
 		out = SloppyMath.logAdd(logterm1) - SloppyMath.logAdd(logterm2);
 		return(out);
 	}
@@ -133,7 +122,8 @@ public class LinkedImportanceSampling implements Runnable{
 		UnrootedTreeState proposedState = null;
 		
 		ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
-		List<ProposalDistribution> proposalDistributions = ProposalDistribution.Util.proposalList(proposalOptions, r, temperature);
+		//List<ProposalDistribution> proposalDistributions = ProposalDistribution.Util.proposalList(proposalOptions, r, temperature);
+		List<ProposalDistribution> proposalDistributions = ProposalDistribution.Util.proposalList(proposalOptions, temp.getNonClockTree(), r);
 		
 		for(int i = 0; i < (nburn + nSamples); i++) {
 			ProposalDistribution nextProposal = proposalDistributions.get(r.nextInt(proposalDistributions

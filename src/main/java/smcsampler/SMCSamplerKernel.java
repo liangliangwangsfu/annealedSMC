@@ -1,5 +1,6 @@
 package smcsampler;
 
+import java.util.List;
 import java.util.Random;
 
 import fig.basic.Pair;
@@ -37,6 +38,8 @@ public interface SMCSamplerKernel<S>
   public  void setCurrentIter(int  currentIter);
   public  int getCurrentIter();
   public void setTemperatureDifference(double temperatureDifference);
+  //public void setDeterministicTemperatureDifference(List<Double> temperatureDifference);
+  //public double getDeterministicTemperatureDifference(int t);
   public boolean isLastIter();
   public double getDefaultTemperatureDifference(); 
   public double getTemperatureDifference();

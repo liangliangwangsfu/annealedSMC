@@ -48,6 +48,7 @@ public class SMCSamplerExperiments implements Runnable
 	@Option public boolean resampleRoot = false;
 	@Option public boolean useLIS = false;
 	@Option public boolean usenewSS = false;
+	@Option public boolean usenewDSMC = false;
 	@Option public int ntempSS = 10;
 	@Option public int mcmcfac = 1;
 	@Option public InferenceMethod refMethod = InferenceMethod.MB;
@@ -433,9 +434,18 @@ public class SMCSamplerExperiments implements Runnable
 				pc.essRatioThreshold = instance.essRatioThreshold;
 				pc.adaptiveType = instance.adaptiveType;
 				pc.setUseCESS(instance.useCESS);
-				if(pc.adaptiveTempDiff == false) {
+				if(pc.adaptiveTempDiff == false && instance.usenewDSMC == false) {
 					 String str =instance.output+"/"+"essTempDiffAdaptive00.csv";
 					 pc.setDeterministicTemperatureDifference(readCSV.DeterministicTem(str));
+				}
+				if(instance.usenewDSMC == true) {
+					int T = instance.nAnnealing;
+					List<Double> DeterministicTD = new ArrayList<Double>();
+					DeterministicTD.add(0.0);
+					for(int t = 1; t < T+1; t++) {
+						DeterministicTD.add(Math.pow((t*1.0)/(T*1.0), 3)-Math.pow(((t-1)*1.0)/(T*1.0), 3));
+					}
+					pc.setDeterministicTemperatureDifference(DeterministicTD);
 				}
 				String filename ="essTempDiffDeterministic.csv";
 				String filename2 ="essTempDiffDeterministic00.csv";
@@ -483,7 +493,7 @@ public class SMCSamplerExperiments implements Runnable
 						+ "; Estimate of variance of log(Z): "
 						+ pc.estimateNormalizerVariance());
 				LogInfo.end_track();
-				instance.nAnnealing = ppk.getCurrentIter();
+				//instance.nAnnealing = ppk.getCurrentIter();
 				return tdp;
 			}
 		};

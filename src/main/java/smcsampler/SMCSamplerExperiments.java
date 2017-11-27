@@ -180,10 +180,7 @@ public class SMCSamplerExperiments implements Runnable
 							{
 								for (int i = 0; i < methods.size(); i++) {
 									InferenceMethod m = methods.get(i);
-									if(i == 0) {
-										List<Double> DeterministictemperatureDifference = null;
-									}
-
+						
 									int nRun = 1;
 									if (m==InferenceMethod.ANNEALING && adaptiveTempDiff)
 										nRun = 2;
@@ -493,7 +490,7 @@ public class SMCSamplerExperiments implements Runnable
 						+ "; Estimate of variance of log(Z): "
 						+ pc.estimateNormalizerVariance());
 				LogInfo.end_track();
-				//instance.nAnnealing = ppk.getCurrentIter();
+				instance.nAnnealing = ppk.getCurrentIter();
 				return tdp;
 			}
 		};

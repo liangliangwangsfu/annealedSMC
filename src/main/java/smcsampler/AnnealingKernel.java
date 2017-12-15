@@ -46,6 +46,7 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 	}
 
 	private double temperatureDifference = 0;
+	
 
 	public double getTemperatureDifference() {
 		return temperatureDifference;

@@ -18,6 +18,7 @@ import goblin.Taxon;
 import ma.MSAParser;
 import ma.MSAPoset;
 import ma.SequenceType;
+import nuts.maxent.SloppyMath;
 import nuts.util.Indexer;
 import pepper.Encodings;
 import pty.RandomRootedTrees;
@@ -42,9 +43,15 @@ public class LinkedImportanceSampling implements Runnable{
 	@Option public int nChains = 13;
 	@Option public double alpha = 0.3;
 	@Option public double GammapriorRatio = 10.0;
-	@Option public int nSamplesEachChain = 1000;
+	@Option public int nSamplesEachChain = 4000;
 	private int nSamples = (int)(nSamplesEachChain*0.8);
 	private int nburn = nSamplesEachChain - nSamples;
+	
+	public void setnSamplesEachChain(int nSamplesEachChain) {
+		this.nSamplesEachChain = nSamplesEachChain;
+		this.nSamples = (int)(nSamplesEachChain*0.8);
+		this.nburn = nSamplesEachChain - nSamples;
+	}
 	
 	public static class Options{
 	    @Option public Prior prior = Prior.EXP;
@@ -68,7 +75,7 @@ public class LinkedImportanceSampling implements Runnable{
 		 MSAPoset align = MSAParser.parseMSA(alignmentInputFile);
 		 Dataset data = Dataset.DatasetUtils.fromAlignment(align, st);
 		 CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(data.nSites(), 2);	
-		 newrun.LinkedIS(align, data, ctmc, nChains, alpha);
+		 newrun.LinkedIS(align, data, ctmc, nChains, nSamplesEachChain, alpha);
 		 double logZ = newrun.getNormalizer();
 		 estimateNormalizer(logZ);
 		 //newrun.estimateNormalizer(logZ);		 
@@ -76,10 +83,6 @@ public class LinkedImportanceSampling implements Runnable{
 
 	
 	public static PhyloSampler.Options _defaultPhyloSamplerOptions = new PhyloSampler.Options();
-	
-/*	public void setTemperatureSchedule(int nChains, double alpha) {
-		this.temperatureSchedule = SStempScheme.Evenly.generateTemp(nChains, alpha);
-	}*/
 	
 	
 	private static int LinkedIndex(List<Double> sampleLoglikelihood, double temperature1, double temperature2, int nSamples) {
@@ -100,15 +103,11 @@ public class LinkedImportanceSampling implements Runnable{
 		double out = 0.0;
 		double[] logterm1 = new double[nSamples];
 		double[] logterm2 = new double[nSamples];
-		double term1 = 0.0;
-		double term2 = 0.0;
 		for(int i = 0; i < nSamples; i++) {
 			logterm1[i] = (temperature2 - temperature1)/2*Loglikelihood1.get(i);
 			logterm2[i] = (temperature1 - temperature2)/2*Loglikelihood2.get(i);		
-			term1 = term1 + Math.exp(logterm1[i]);
-			term2 = term2 + Math.exp(logterm2[i]);			
-		}		
-		out = Math.log(term1) - Math.log(term2);
+		}	
+		out = SloppyMath.logAdd(logterm1) - SloppyMath.logAdd(logterm2);
 		return(out);
 	}
 	
@@ -123,7 +122,8 @@ public class LinkedImportanceSampling implements Runnable{
 		UnrootedTreeState proposedState = null;
 		
 		ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
-		List<ProposalDistribution> proposalDistributions = ProposalDistribution.Util.proposalList(proposalOptions, r, temperature);
+		//List<ProposalDistribution> proposalDistributions = ProposalDistribution.Util.proposalList(proposalOptions, r, temperature);
+		List<ProposalDistribution> proposalDistributions = ProposalDistribution.Util.proposalList(proposalOptions, temp.getNonClockTree(), r);
 		
 		for(int i = 0; i < (nburn + nSamples); i++) {
 			ProposalDistribution nextProposal = proposalDistributions.get(r.nextInt(proposalDistributions
@@ -238,7 +238,8 @@ public class LinkedImportanceSampling implements Runnable{
 	}
 	
 
-	public void LinkedIS(MSAPoset  msa, Dataset data, CTMC ctmc, int nChains, double alpha) {
+	public void LinkedIS(MSAPoset  msa, Dataset data, CTMC ctmc, int nChains, int nSamplesEachChain, double alpha) {
+		setnSamplesEachChain(nSamplesEachChain);
 		Random r =  new Random();
 		Pair<List<UnrootedTree>, List<Double>> proposedState = null;
 		Pair<List<UnrootedTree>, List<Double>> proposedState1 = null;
@@ -247,13 +248,16 @@ public class LinkedImportanceSampling implements Runnable{
 		List<Double> proposedLoglikelihood = new ArrayList<Double>();
 		List<Double> proposedLoglikelihood1 = new ArrayList<Double>();
 
-		final double[] temperatureSchedule = SStempScheme.Evenly.generateTemp(nChains, alpha);
+		final double[] temperatureSchedule = SStempScheme.Beta.generateTemp(nChains, alpha);
 		UnrootedTree LinkedTree = initTree(r, msa.taxa());
 		UnrootedTree initTree = null;
 		UnrootedTreeState initTreeState = null;
 		double LinkedTreeLoglikelihood = 0.0;
 		int I = (int)(r.nextDouble()*nSamples);
 
+		System.out.println(nSamplesEachChain);
+		System.out.println(nburn);
+		System.out.println(nSamples);
 		for(int i = 0; i < nSamples; i++) {
 			initTree = initTree(r, msa.taxa());
 			proposedSample.add(LinkedTree);	
@@ -280,12 +284,6 @@ public class LinkedImportanceSampling implements Runnable{
 			logZ = logZ + logNormalizer(proposedState.getSecond(), proposedState1.getSecond(), temperatureSchedule[t-1], t1, nSamples);
 			System.out.println(logZ);
 		}
-	}
-	
-	public void setnSamplesEachChain(int nSamplesEachChain) {
-		this.nSamplesEachChain = nSamplesEachChain;
-		this.nSamples = (int)(nSamplesEachChain*0.8);
-		this.nburn = nSamplesEachChain - nSamples;
 	}
 	
 	public void setnChains(int nChains) {
@@ -327,9 +325,10 @@ public class LinkedImportanceSampling implements Runnable{
 			System.out.println(temperatureSchedule[i]);
 		}*/
 		LinkedImportanceSampling newrun = new LinkedImportanceSampling();
-		int nChains = 5;
-		double alpha = 0.3;
-		newrun.LinkedIS(msa, data, ctmc, nChains, alpha);
+		int nChains = 50;
+		int nSamplesEachChain  = 1000;
+		double alpha = 1.0/3.0;
+		newrun.LinkedIS(msa, data, ctmc, nChains, nSamplesEachChain, alpha);
 		double logZ = newrun.getNormalizer();
 		System.out.println(logZ);
 

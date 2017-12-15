@@ -48,6 +48,7 @@ public class SMCSamplerExperiments implements Runnable
 	@Option public boolean resampleRoot = false;
 	@Option public boolean useLIS = false;
 	@Option public boolean usenewSS = false;
+	@Option public boolean usenewDSMC = false;
 	@Option public int ntempSS = 10;
 	@Option public int mcmcfac = 1;
 	@Option public InferenceMethod refMethod = InferenceMethod.MB;
@@ -179,7 +180,7 @@ public class SMCSamplerExperiments implements Runnable
 							{
 								for (int i = 0; i < methods.size(); i++) {
 									InferenceMethod m = methods.get(i);
-
+						
 									int nRun = 1;
 									if (m==InferenceMethod.ANNEALING && adaptiveTempDiff)
 										nRun = 2;
@@ -311,16 +312,17 @@ public class SMCSamplerExperiments implements Runnable
 			@Override
 			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
 			{
+
 				PhyloSampler._defaultPhyloSamplerOptions.rand = mainRand;
 				samplerMain.alignmentInputFile = instance.data;
 				samplerMain.st = instance.sequenceType;
-				int Ntemperature = 10;
-				double alpha = 0.3;
+				int Ntemperature = 4;
+				double alpha = 1.0/3.0;
 				PhyloSampler._defaultPhyloSamplerOptions.nIteration = (int) (iterScale * instance.nThousandIters * 1000/(1.0*instance.mcmcfac));
 				//PhyloSampler._defaultPhyloSamplerOptions.nIteration = 10000;
 				//double[] temperatureSchedule = new double[]{1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0};	
 				samplerMain.setTemperatureSchedule(Ntemperature, alpha);
-				samplerMain.computeLogZUsingSteppingStone=false;
+				samplerMain.computeLogZUsingSteppingStone = false;
 				samplerMain.setnSamplesEachChain(PhyloSampler._defaultPhyloSamplerOptions.nIteration);
 				samplerMain.setLogZ(0.0);
 				samplerMain.run();			
@@ -328,6 +330,7 @@ public class SMCSamplerExperiments implements Runnable
 				instance.logZout.println(CSV.body(treeName,"MCMC", "NA",
 						samplerMain.getLogZ()));
 				instance.logZout.flush();
+				
 				
 				if(instance.useLIS == true) {
 					LinkedImportanceSampling._defaultPhyloSamplerOptions.rand = mainRand;
@@ -337,7 +340,7 @@ public class SMCSamplerExperiments implements Runnable
 					//LISMain.nSamplesEachChain = 10000;
 					LISMain.setnSamplesEachChain(LISMain.nSamplesEachChain);
 					LISMain.nChains = instance.ntempSS;
-					LISMain.alpha = 0.3;
+					LISMain.alpha = 1.0/3.0;
 					LISMain.run();	
 					instance.logZout.println(CSV.body(treeName,"LIS", "NA",
 							LISMain.getNormalizer()));
@@ -349,16 +352,15 @@ public class SMCSamplerExperiments implements Runnable
 					ssMain.alignmentInputFile = instance.data;
 					ssMain.st = instance.sequenceType;
 					ssMain.nSamplesEachChain = ((int) (iterScale * instance.nThousandIters * 1000/(1.0*instance.ntempSS)));
-					//ssMain.nSamplesEachChain = 10000;
 					ssMain.setnSamplesEachChain(ssMain.nSamplesEachChain);
 					ssMain.nChains = instance.ntempSS;
-					ssMain.alpha = 0.3;
+					ssMain.alpha = 1.0/3.0;
 					ssMain.run();	
 					instance.logZout.println(CSV.body(treeName,"SS", "NA",
 							ssMain.getNormalizer()));
 					instance.logZout.flush();	
 				}
-					
+									
 				return  samplerMain.tdp;
 			}
 		},	
@@ -429,12 +431,31 @@ public class SMCSamplerExperiments implements Runnable
 				pc.essRatioThreshold = instance.essRatioThreshold;
 				pc.adaptiveType = instance.adaptiveType;
 				pc.setUseCESS(instance.useCESS);
+				if(pc.adaptiveTempDiff == false && instance.usenewDSMC == false) {
+					 String str =instance.output+"/"+"essTempDiffAdaptive00.csv";
+					 pc.setDeterministicTemperatureDifference(readCSV.DeterministicTem(str));
+				}
+				if(instance.usenewDSMC == true) {
+					int T = instance.nAnnealing;
+					List<Double> DeterministicTD = new ArrayList<Double>();
+					DeterministicTD.add(0.0);
+					for(int t = 1; t < T+1; t++) {
+						DeterministicTD.add(Math.pow((t*1.0)/(T*1.0), 3)-Math.pow(((t-1)*1.0)/(T*1.0), 3));
+					}
+					pc.setDeterministicTemperatureDifference(DeterministicTD);
+				}
 				String filename ="essTempDiffDeterministic.csv";
-				if (instance.adaptiveTempDiff)
+				String filename2 ="essTempDiffDeterministic00.csv";
+				if (instance.adaptiveTempDiff) {
 					filename = "essTempDiffAdaptive" + instance.adaptiveType
-					+ ".csv";
+							+ ".csv";
+					filename2 ="essTempDiffAdaptive00.csv";
+				}
+					
 				pc.smcSamplerOut = IOUtils.openOutEasy(new File(
 						instance.output, filename));
+				pc.smcSamplerOut2 = IOUtils.openOutEasy(new File(
+						instance.output, filename2));
 				List<Taxon> leaves = MSAParser.parseMSA(instance.data).taxa();
 				UnrootedTree initTree = initTree(new Random(3), leaves);
 				Gamma exponentialPrior = Gamma.exponential(10.0);
@@ -442,7 +463,7 @@ public class SMCSamplerExperiments implements Runnable
 						exponentialPrior);
 				Dataset dataset = DatasetUtils.fromAlignment(instance.data, instance.sequenceType);		        
 				CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites(),instance.csmc_trans2tranv);
-				UnrootedTreeState ncts = UnrootedTreeState.initFastState(initTree, dataset, ctmc,priorDensity);			
+				UnrootedTreeState ncts = UnrootedTreeState.initFastState(initTree, dataset, ctmc, priorDensity);			
 				if(dataset.observations().size()<=5)
 					instance.marginalLogLike=numericalIntegratedMarginalLikelihood(instance.mainRand, ncts, 10.0, instance.nNumericalIntegration);
 

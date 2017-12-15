@@ -51,8 +51,24 @@ public final class SMCSampler<S>
 
 	private ProcessSchedule schedule = null;
 	private double ess = N;
+	
+	private List<Double> tempDiffList = new ArrayList<Double>();
 	//	private double cess=1.0;
 	private double tempDiff=0;
+	
+	private List<Double> DeterministictemperatureDifference = null;
+	
+	public List<Double> getDeterministicTemperature(){
+		return tempDiffList;
+	}
+	
+	public void setDeterministicTemperatureDifference(List<Double> temperatureDifference) {
+		this.DeterministictemperatureDifference = temperatureDifference;
+	}
+	
+/*	public double getDeterministicTemperatureDifference(int t) {
+		return(DeterministictemperatureDifference.get(t));
+	}*/
 	
 	private boolean useCESS=true;
 
@@ -70,6 +86,7 @@ public final class SMCSampler<S>
 
 	public int adaptiveType = 0;
 	public PrintWriter smcSamplerOut = null;
+	public PrintWriter smcSamplerOut2 = null;
 
 	public double getEss() {
 		return ess;
@@ -283,9 +300,11 @@ public final class SMCSampler<S>
 			final TreeDistancesProcessor tdp) {
 		init(kernel);
 		if(smcSamplerOut!=null)smcSamplerOut.println(CSV.header("t", "ESS", "tempDiff", "temp"));
+		//if(smcSamplerOut!=null)smcSamplerOut.println(CSV.header("tempDiff"));
 		double alpha0 = alpha;
 		//	for (int t = 0; t < T && !isLastIter; t++) {
 		int t=0;
+		tempDiffList.add(0.0);
 		while(!kernel.isLastIter()){			
 			kernel.setCurrentIter(t);			
 			if (adaptiveTempDiff) {
@@ -293,9 +312,12 @@ public final class SMCSampler<S>
 				if (t > 0) {						
 					tempDiff = temperatureDifference(alpha, 1.0e-10, 0, 0.2);
 					if(tempDiff == -1) tempDiff = kernel.getDefaultTemperatureDifference();
+					tempDiffList.add(tempDiff);
 				}
 			} else {
-				tempDiff = kernel.getDefaultTemperatureDifference();  
+				//tempDiff = kernel.getDefaultTemperatureDifference();  
+				tempDiff = DeterministictemperatureDifference.get(t); 
+				//System.out.println(tempDiff);
 			}
 			kernel.setTemperatureDifference(tempDiff);
 			if (verbose)
@@ -314,7 +336,14 @@ public final class SMCSampler<S>
 			if(smcSamplerOut!=null)
 			{
 				smcSamplerOut.println(CSV.body(t, ess,kernel.getTemperatureDifference(), kernel.getTemperature()));
+				//smcSamplerOut.println(CSV.body(kernel.getTemperatureDifference()));
 				smcSamplerOut.flush();
+			}
+			if(smcSamplerOut2!=null)
+			{
+				//smcSamplerOut.println(CSV.body(t, ess,kernel.getTemperatureDifference(), kernel.getTemperature()));
+				smcSamplerOut2.println(CSV.body(kernel.getTemperatureDifference()));
+				smcSamplerOut2.flush();
 			}
 
 			if (verbose)
@@ -357,8 +386,9 @@ public final class SMCSampler<S>
 			//				schedule.monitor(new ProcessScheduleContext(t, t == T - 1,
 			//				ResampleStatus.NA));
 			t++;
-		}	
+		}
 		if(smcSamplerOut!=null)smcSamplerOut.close();
+		if(smcSamplerOut2!=null)smcSamplerOut2.close();
 	}
 
 

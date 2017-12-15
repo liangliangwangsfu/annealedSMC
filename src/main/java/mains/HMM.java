@@ -201,7 +201,7 @@ public class HMM implements Model<AnnealedLikelihoodParticle<List<Integer>>>
       double oldLocalLogLikelihood = logLikelihood(states, index);
       double logDenom = logPrior(states, index) + temperature * oldLocalLogLikelihood;
       
-      int newState = random.nextInt(nLatents);
+      int newState = nLatents == 2 ? 1 - oldState : random.nextInt(nLatents);
       states.set(index, newState);
       double newLocalLogLikelihood = logLikelihood(states, index);
       double logNum   = logPrior(states, index) + temperature * newLocalLogLikelihood;

@@ -49,6 +49,7 @@ public class SMCSamplerExperiments implements Runnable
 	@Option public boolean useLIS = false;
 	@Option public boolean usenewSS = false;
 	@Option public boolean usenewDSMC = false;
+	@Option public boolean useRef = false;
 	@Option public int ntempSS = 10;
 	@Option public int mcmcfac = 1;
 	@Option public InferenceMethod refMethod = InferenceMethod.MB;
@@ -61,6 +62,7 @@ public class SMCSamplerExperiments implements Runnable
 	@Option public double treeRatePrior=1.0;
 	public static ev.ex.DataGenerator.DataGeneratorMain generator = new ev.ex.DataGenerator.DataGeneratorMain();
 	public static PhyloSamplerMain samplerMain = new PhyloSamplerMain();
+	public static phyloMCMC2 samplerMain2 = new phyloMCMC2();
 	public static LinkedImportanceSampling LISMain = new LinkedImportanceSampling();
 	public static SteppingStone ssMain = new SteppingStone();
 	@Option 	public static Random mainRand  = new Random(3);
@@ -187,7 +189,7 @@ public class SMCSamplerExperiments implements Runnable
 									int nIter = Integer.MIN_VALUE;
 									for (int l = 0; l < nRun; l++) {
 										double iterScale = iterScalings.get(i);
-										if((m == InferenceMethod.MB || m == InferenceMethod.MCMC)&& nMrBayesIter>0) iterScale=nMrBayesIter;
+										if((m == InferenceMethod.MB || m == InferenceMethod.MCMC|| m == InferenceMethod.MCMC2)&& nMrBayesIter>0) iterScale=nMrBayesIter;
 										LogInfo.track("Current method:" + m + " with iterScale=" + iterScale + " (i.e. " + (iterScale * nThousandIters * 1000.0) + " iterations)");
 
 										DescriptiveStatisticsMap<String> stats = new DescriptiveStatisticsMap<String>();
@@ -202,6 +204,10 @@ public class SMCSamplerExperiments implements Runnable
 										LogInfo.forceSilent = false;
 										UnrootedTree inferred = processor.getConsensus();		
 										System.out.println(inferred);
+										if(m==InferenceMethod.ANNEALING && l==0) {
+											//IO.writeToDisk(new File(output, "consensus_annealing_"+treeName.replaceAll("[.]msf$",".newick")), inferred.toNewick());
+											IO.writeToDisk(new File(output, "consensus_annealing.newick"), inferred.toNewick());
+										}
 										IO.writeToDisk(new File(output, "consensus_"+treeName.replaceAll("[.]msf$",".newick")), inferred.toNewick());
 										{
 											UnrootedTreeState ncs = UnrootedTreeState.initFastState(inferred, dataset, ctmc);
@@ -260,7 +266,7 @@ public class SMCSamplerExperiments implements Runnable
 										if ((l < nRun - 1) && (this.nAnnealing > nIter))
 										{
 											nIter = this.nAnnealing;			
-											nMrBayesIter=Math.max(100000, (int) (nIter*iterScalings.get(i)));
+											nMrBayesIter=Math.max(1000, (int) (nIter*iterScalings.get(i)));
 										}
 										if (l == nRun - 2) {
 											nAnnealing = nIter;											
@@ -364,6 +370,24 @@ public class SMCSamplerExperiments implements Runnable
 				return  samplerMain.tdp;
 			}
 		},	
+		MCMC2 {
+			@Override
+			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
+			{
+
+				//PhyloSampler._defaultPhyloSamplerOptions.rand = mainRand;
+				PhyloSampler._defaultPhyloSamplerOptions.rand = mainRand;
+				samplerMain2.alignmentInputFile = instance.data;
+				samplerMain2.st = instance.sequenceType;
+				//String newname = instance.output+"/"+"consensus_annealing_" +treeName.replaceAll("[.]msf$",".newick");
+				String newname = instance.output+"/"+ "consensus_annealing.newick";
+				samplerMain2.initTree =  UnrootedTree.fromRooted(RootedTree.Util.fromNewickString(IO.f2s(new File(newname))));
+				PhyloSampler._defaultPhyloSamplerOptions.nIteration = (int) (iterScale * instance.nThousandIters * 1000/(1.0*instance.mcmcfac));
+				samplerMain2.run();			
+				
+				return  samplerMain2.tdp;
+			}
+		},
 		MB {
 			@Override
 			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance,

@@ -81,11 +81,12 @@ public class AnnealedSMC<P extends AnnealedParticle> implements AnnealingTypeAlg
     
     BriefParallel.process(nSamplesPerTemperature, nThreads, particleIndex ->
     {
+      logWeights[particleIndex] = 
+          (isInitial ? 0.0 : currentPopulation.particles.get(particleIndex).logDensityRatio(temperature, nextTemperature) + Math.log(currentPopulation.getNormalizedWeight(particleIndex)));
+      // Note: order important in case computation is done in place: weight computation should be done first
       P proposed = isInitial ?
         kernels.sampleInitial(randoms[particleIndex]) :
         kernels.sampleNext(randoms[particleIndex], currentPopulation.particles.get(particleIndex), nextTemperature);
-      logWeights[particleIndex] = 
-        (isInitial ? 0.0 : currentPopulation.particles.get(particleIndex).logDensityRatio(temperature, nextTemperature) + Math.log(currentPopulation.getNormalizedWeight(particleIndex)));
       particles[particleIndex] = proposed;
     });
     

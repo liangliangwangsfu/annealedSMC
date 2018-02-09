@@ -97,7 +97,8 @@ public class SteppingStone implements Runnable{
 		return(out);
 	}
 	
-	private static Pair<List<UnrootedTree>, List<Double>>propagation(MSAPoset  msa, double temperature, int nburn, int nSamples, CTMC ctmc, Dataset data, StandardNonClockPriorDensity priorDensity, UnrootedTreeState initTree) {
+	//private static Pair<List<UnrootedTree>, List<Double>>propagation(MSAPoset  msa, double temperature, int nburn, int nSamples, CTMC ctmc, Dataset data, StandardNonClockPriorDensity priorDensity, UnrootedTreeState initTree) {
+	private static Pair<UnrootedTree, List<Double>>propagation(MSAPoset  msa, double temperature, int nburn, int nSamples, CTMC ctmc, Dataset data, StandardNonClockPriorDensity priorDensity, UnrootedTreeState initTree) {
 		List<UnrootedTree> proposedSample = new ArrayList();
 		List<Double> proposedLoglikelihood = new ArrayList();
 		Random r = new Random();
@@ -118,12 +119,13 @@ public class SteppingStone implements Runnable{
 			proposedState = proposal(r, temp, nextProposal, temperature);
 			temp = proposedState;
 			if(i >= nburn){
-				proposedSample.add(proposedState.getNonClockTree());
+				//proposedSample.add(proposedState.getNonClockTree());
 				proposedLoglikelihood.add(proposedState.getLogLikelihood());		
 			}
 				
 		}
-		return Pair.makePair(proposedSample, proposedLoglikelihood);
+		//return Pair.makePair(proposedSample, proposedLoglikelihood);
+		return Pair.makePair(proposedState.getNonClockTree(), proposedLoglikelihood);
 		
 	}
 	
@@ -150,8 +152,6 @@ public class SteppingStone implements Runnable{
 			final double logProposalRatio = result.getSecond();
 			//double logLikRatio = temperature*proposedState.getLogLikelihood() - logTargetDenCurrent;  
 			double logLikRatio = logTargetDensity(temperature, proposedState) - logTargetDenCurrent;  
-			//System.out.println("temperature = "+ temperature);
-			//System.out.println("LogLikRatio = "+ logLikRatio + "; logProposalRatio = "+ logProposalRatio);
 			final double ratio = Math.min(1,
 					Math.exp(logProposalRatio + logLikRatio));
 			if (Double.isNaN(ratio))
@@ -162,6 +162,35 @@ public class SteppingStone implements Runnable{
 		}
 		return proposedState;
 	}
+	
+/*	public static enum SStempScheme{
+		Beta{
+			public double[] generateTemp(int N, double alpha) {
+				double[] Temp = new double[N];
+				for(int i = 0; i < N; i++) {
+					Temp[i] = Math.pow(i*1.0/((N-1)*1.0), 1.0/alpha);
+				}
+				return(Temp);				
+			}
+		},
+		Evenly{
+			public double[] generateTemp(int N,  double alpha){
+				double[] Temp = new double[N];
+				for(int i = 0; i < N; i++) {
+					Temp[i] = i*1.0/((N-1)*1.0);
+				}
+				return(Temp);		
+			}
+		};
+
+		public abstract double[] generateTemp(int N, double alpha); 
+		
+		public double[] SSTemp(int N, double alpha){
+			
+			return generateTemp(N, alpha);
+		}
+
+	}	*/
 	
 	public static enum SStempScheme{
 		Beta{
@@ -207,7 +236,8 @@ public class SteppingStone implements Runnable{
 	public void SteppingStone(MSAPoset  msa, Dataset data, CTMC ctmc, int nChains, int nSamplesEachChain, double alpha) {
 		setnSamplesEachChain(nSamplesEachChain);
 		//Random r =  new Random();
-		Pair<List<UnrootedTree>, List<Double>> proposedState = null;
+		//Pair<List<UnrootedTree>, List<Double>> proposedState = null;
+		Pair<UnrootedTree, List<Double>> proposedState = null;
 		//List<UnrootedTree> proposedSample = new ArrayList<UnrootedTree>();
 		List<Double> proposedLoglikelihood = new ArrayList<Double>();
 
@@ -232,7 +262,8 @@ public class SteppingStone implements Runnable{
 			//t1 = temperatureSchedule[t-1];
 			proposedState = propagation(msa, temperatureSchedule[t-1], nburn, nSamples, ctmc, data, priorDensity, initTreeState);
 			logZ = logZ + logNormalizer(proposedState.getSecond(), temperatureSchedule[t-1], temperatureSchedule[t], nSamples);
-			initTree = proposedState.getFirst().get(nSamples - 1);
+			//initTree = proposedState.getFirst().get(nSamples - 1);
+			initTree = proposedState.getFirst();
 			initTreeState =  UnrootedTreeState.initFastState(initTree, data, ctmc, priorDensity);
 			System.out.println(logZ);
 		}
@@ -255,7 +286,7 @@ public class SteppingStone implements Runnable{
 		// TODO Auto-generated method stub
 		int nTaxa = 30;
 		double treeRate = 10;
-		int len = 200;
+		int len = 100;
 		boolean generateDNAdata = true;
 		Random randTree =  new Random(1);
 		Random randData =  new Random(2);

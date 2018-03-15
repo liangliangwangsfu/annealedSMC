@@ -48,6 +48,7 @@ public class SMCSamplerExperiments implements Runnable
 	@Option public boolean resampleRoot = false;
 	@Option public boolean useLIS = false;
 	@Option public boolean usenewSS = false;
+	@Option public boolean useRevSS = false;
 	@Option public boolean usenewDSMC = false;
 	@Option public boolean useRef = false;
 	@Option public int ntempSS = 10;
@@ -65,6 +66,7 @@ public class SMCSamplerExperiments implements Runnable
 	public static phyloMCMC2 samplerMain2 = new phyloMCMC2();
 	public static LinkedImportanceSampling LISMain = new LinkedImportanceSampling();
 	public static SteppingStone ssMain = new SteppingStone();
+	public static SSreverse RevssMain = new SSreverse();
 	@Option 	public static Random mainRand  = new Random(3);
 	@Option public boolean verbose = false;
 	@Option public int nThreads = 1;
@@ -354,6 +356,20 @@ public class SMCSamplerExperiments implements Runnable
 				}
 				
 				if(instance.usenewSS == true) {
+					LinkedImportanceSampling._defaultPhyloSamplerOptions.rand = mainRand;
+					RevssMain.alignmentInputFile = instance.data;
+					RevssMain.st = instance.sequenceType;
+					RevssMain.nSamplesEachChain = ((int) (iterScale * instance.nThousandIters * 1000/(1.0*(instance.ntempSS+1))));
+					RevssMain.setnSamplesEachChain(RevssMain.nSamplesEachChain);
+					RevssMain.nChains = instance.ntempSS;
+					RevssMain.alpha = 1.0/3.0;
+					RevssMain.run();	
+					instance.logZout.println(CSV.body(treeName,"RevSS", "NA",
+							RevssMain.getNormalizer()));
+					instance.logZout.flush();	
+				}
+				
+				if(instance.useRevSS == true) {
 					LinkedImportanceSampling._defaultPhyloSamplerOptions.rand = mainRand;
 					ssMain.alignmentInputFile = instance.data;
 					ssMain.st = instance.sequenceType;

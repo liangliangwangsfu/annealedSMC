@@ -74,7 +74,7 @@ public class LinkedImportanceSampling implements Runnable{
 		 System.out.println(nSamples);
 		 MSAPoset align = MSAParser.parseMSA(alignmentInputFile);
 		 Dataset data = Dataset.DatasetUtils.fromAlignment(align, st);
-		 CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(data.nSites(), 2);	
+		 CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(data.nSites(), 1);	
 		 newrun.LinkedIS(align, data, ctmc, nChains, nSamplesEachChain, alpha);
 		 double logZ = newrun.getNormalizer();
 		 estimateNormalizer(logZ);

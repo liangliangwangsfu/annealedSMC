@@ -36,8 +36,7 @@ import pty.smc.models.CTMC;
 import pty.smc.models.CTMC.GTRIGammaCTMC;
 
 
-
-public class SteppingStone implements Runnable{
+public class SSreverse implements Runnable{
 	@Option public File alignmentInputFile = null;
 	@Option public SequenceType st = SequenceType.DNA;
 	@Option public int nSamplesEachChain = 4000;
@@ -109,22 +108,18 @@ public class SteppingStone implements Runnable{
 		UnrootedTreeState proposedState = null;
 		
 		ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
-		//List<ProposalDistribution> proposalDistributions = ProposalDistribution.Util.proposalList(proposalOptions, r, temperature);
 		List<ProposalDistribution> proposalDistributions = ProposalDistribution.Util.proposalList(proposalOptions, initTree.getNonClockTree(), r);
 		
 		for(int i = 0; i < (nburn + nSamples); i++) {
 			ProposalDistribution nextProposal = proposalDistributions.get(r.nextInt(proposalDistributions
 					.size()));
-			//System.out.println(nextProposal);
 			proposedState = proposal(r, temp, nextProposal, temperature);
 			temp = proposedState;
 			if(i >= nburn){
-				//proposedSample.add(proposedState.getNonClockTree());
 				proposedLoglikelihood.add(proposedState.getLogLikelihood());		
 			}
 				
 		}
-		//return Pair.makePair(proposedSample, proposedLoglikelihood);
 		return Pair.makePair(proposedState.getNonClockTree(), proposedLoglikelihood);
 		
 	}
@@ -163,41 +158,14 @@ public class SteppingStone implements Runnable{
 		return proposedState;
 	}
 	
-/*	public static enum SStempScheme{
-		Beta{
-			public double[] generateTemp(int N, double alpha) {
-				double[] Temp = new double[N];
-				for(int i = 0; i < N; i++) {
-					Temp[i] = Math.pow(i*1.0/((N-1)*1.0), 1.0/alpha);
-				}
-				return(Temp);				
-			}
-		},
-		Evenly{
-			public double[] generateTemp(int N,  double alpha){
-				double[] Temp = new double[N];
-				for(int i = 0; i < N; i++) {
-					Temp[i] = i*1.0/((N-1)*1.0);
-				}
-				return(Temp);		
-			}
-		};
 
-		public abstract double[] generateTemp(int N, double alpha); 
-		
-		public double[] SSTemp(int N, double alpha){
-			
-			return generateTemp(N, alpha);
-		}
-
-	}	*/
 	
 	public static enum SStempScheme{
 		Beta{
 			public double[] generateTemp(int N, double alpha) {
 				double[] Temp = new double[N];
 				for(int i = 0; i < N; i++) {
-					Temp[i] = Math.pow(i*1.0/((N-1)*1.0), 1.0/alpha);
+					Temp[i] = Math.pow(i*1.0/(N*1.0), 1.0/alpha);
 				}
 				return(Temp);				
 			}
@@ -206,7 +174,7 @@ public class SteppingStone implements Runnable{
 			public double[] generateTemp(int N,  double alpha){
 				double[] Temp = new double[N];
 				for(int i = 0; i < N; i++) {
-					Temp[i] = i*1.0/((N-1)*1.0);
+					Temp[i] = i*1.0/(N*1.0);
 				}
 				return(Temp);		
 			}
@@ -244,6 +212,32 @@ public class SteppingStone implements Runnable{
 		final double[] temperatureSchedule = SStempScheme.Beta.generateTemp(nChains, alpha);
 		UnrootedTree initTree = null;
 		UnrootedTreeState initTreeState = null;
+		
+		//First sample from the posterior chain...
+		Random r0 =  new Random();
+		initTree = initTree(r0, msa.taxa());
+		initTreeState = UnrootedTreeState.initFastState(initTree, data, ctmc, priorDensity);
+		proposedState = null;
+		proposedState = propagation(msa, 1.0, nburn, nSamples, ctmc, data, priorDensity, initTreeState);
+		initTree = proposedState.getFirst();
+		initTreeState = UnrootedTreeState.initFastState(initTree, data, ctmc, priorDensity);
+		
+		for(int t = 0; t < nChains-1; t++) {
+			proposedState = null;
+			//t1 = temperatureSchedule[t-1];
+			proposedState = propagation(msa, temperatureSchedule[nChains-1-t], nburn, nSamples, ctmc, data, priorDensity, initTreeState);
+			if(t == 0) {
+				logZ = logZ + logNormalizer(proposedState.getSecond(), temperatureSchedule[nChains-1-t], 1, nSamples);
+			}
+			else {
+				logZ = logZ + logNormalizer(proposedState.getSecond(), temperatureSchedule[nChains-1-t], temperatureSchedule[nChains-t], nSamples);
+			}
+			
+			//initTree = proposedState.getFirst().get(nSamples - 1);
+			initTree = proposedState.getFirst();
+			initTreeState =  UnrootedTreeState.initFastState(initTree, data, ctmc, priorDensity);
+			System.out.println(logZ);
+		}
 
 
 		for(int i = 0; i < nSamples; i++) {
@@ -256,17 +250,6 @@ public class SteppingStone implements Runnable{
 		logZ = logZ + logNormalizer(proposedLoglikelihood, temperatureSchedule[0], temperatureSchedule[1], nSamples);
 		
 		System.out.println(logZ);
-
-		for(int t = 2; t < nChains; t++) {
-			proposedState = null;
-			//t1 = temperatureSchedule[t-1];
-			proposedState = propagation(msa, temperatureSchedule[t-1], nburn, nSamples, ctmc, data, priorDensity, initTreeState);
-			logZ = logZ + logNormalizer(proposedState.getSecond(), temperatureSchedule[t-1], temperatureSchedule[t], nSamples);
-			//initTree = proposedState.getFirst().get(nSamples - 1);
-			initTree = proposedState.getFirst();
-			initTreeState =  UnrootedTreeState.initFastState(initTree, data, ctmc, priorDensity);
-			System.out.println(logZ);
-		}
 	}
 	
 	public void setnChains(int nChains) {
@@ -304,9 +287,9 @@ public class SteppingStone implements Runnable{
 		Dataset data = Dataset.DatasetUtils.fromAlignment(msa, sequenceType);
 		CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(data.nSites(), 2);
 		
-		SteppingStone newrun = new SteppingStone();
+		SSreverse newrun = new SSreverse();
 		int nChains = 50;
-		int nSamplesEachChain  = 1000;
+		int nSamplesEachChain  = 2000;
 		double alpha = 1.0/3.0;
 		newrun.SteppingStone(msa, data, ctmc, nChains, nSamplesEachChain, alpha);
 		double logZ = newrun.getNormalizer();
@@ -319,3 +302,4 @@ public class SteppingStone implements Runnable{
 
 
 }
+

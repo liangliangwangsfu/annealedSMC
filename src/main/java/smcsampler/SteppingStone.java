@@ -44,6 +44,7 @@ public class SteppingStone implements Runnable{
 	@Option public int nChains = 13;
 	@Option public double alpha = 0.3;
 	@Option public double GammapriorRatio = 10.0;
+	@Option public double csmc_trans2tranv=2.0;
 	
 	
 	public static class Options{
@@ -74,9 +75,10 @@ public class SteppingStone implements Runnable{
 		 System.out.println(nChains);
 		 System.out.println(nSamples);
 		 System.out.println(nSamplesEachChain);
+		 System.out.println(csmc_trans2tranv);
 		 MSAPoset align = MSAParser.parseMSA(alignmentInputFile);
 		 Dataset data = Dataset.DatasetUtils.fromAlignment(align, st);
-		 CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(data.nSites(), 1);	
+		 CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(data.nSites(), csmc_trans2tranv);	
 		 newrun.SteppingStone(align, data, ctmc, nChains, nSamplesEachChain, alpha);
 		 double logZ = newrun.getNormalizer();
 		 estimateNormalizer(logZ);

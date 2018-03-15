@@ -44,6 +44,7 @@ public class LinkedImportanceSampling implements Runnable{
 	@Option public double alpha = 0.3;
 	@Option public double GammapriorRatio = 10.0;
 	@Option public int nSamplesEachChain = 4000;
+	@Option public double csmc_trans2tranv=2.0;
 	private int nSamples = (int)(nSamplesEachChain*0.8);
 	private int nburn = nSamplesEachChain - nSamples;
 	
@@ -72,9 +73,10 @@ public class LinkedImportanceSampling implements Runnable{
 		 int nburn=nSamplesEachChain-nSamples;    
 		 System.out.println(nChains);
 		 System.out.println(nSamples);
+		 System.out.println(csmc_trans2tranv);
 		 MSAPoset align = MSAParser.parseMSA(alignmentInputFile);
 		 Dataset data = Dataset.DatasetUtils.fromAlignment(align, st);
-		 CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(data.nSites(), 1);	
+		 CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(data.nSites(), csmc_trans2tranv);	
 		 newrun.LinkedIS(align, data, ctmc, nChains, nSamplesEachChain, alpha);
 		 double logZ = newrun.getNormalizer();
 		 estimateNormalizer(logZ);

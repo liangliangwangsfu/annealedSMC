@@ -349,34 +349,37 @@ public class SMCSamplerExperiments implements Runnable
 					LISMain.setnSamplesEachChain(LISMain.nSamplesEachChain);
 					LISMain.nChains = instance.ntempSS;
 					LISMain.alpha = 1.0/3.0;
+					LISMain.csmc_trans2tranv = instance.csmc_trans2tranv;
 					LISMain.run();	
 					instance.logZout.println(CSV.body(treeName,"LIS", "NA",
 							LISMain.getNormalizer()));
 					instance.logZout.flush();	
 				}
 				
-				if(instance.usenewSS == true) {
-					LinkedImportanceSampling._defaultPhyloSamplerOptions.rand = mainRand;
+				if(instance.useRevSS == true)  {
+					SSreverse._defaultPhyloSamplerOptions.rand = mainRand;
 					RevssMain.alignmentInputFile = instance.data;
 					RevssMain.st = instance.sequenceType;
 					RevssMain.nSamplesEachChain = ((int) (iterScale * instance.nThousandIters * 1000/(1.0*(instance.ntempSS+1))));
 					RevssMain.setnSamplesEachChain(RevssMain.nSamplesEachChain);
 					RevssMain.nChains = instance.ntempSS;
 					RevssMain.alpha = 1.0/3.0;
+					RevssMain.csmc_trans2tranv = instance.csmc_trans2tranv;
 					RevssMain.run();	
 					instance.logZout.println(CSV.body(treeName,"RevSS", "NA",
 							RevssMain.getNormalizer()));
 					instance.logZout.flush();	
 				}
 				
-				if(instance.useRevSS == true) {
-					LinkedImportanceSampling._defaultPhyloSamplerOptions.rand = mainRand;
+				if(instance.usenewSS == true){
+					SteppingStone._defaultPhyloSamplerOptions.rand = mainRand;
 					ssMain.alignmentInputFile = instance.data;
 					ssMain.st = instance.sequenceType;
 					ssMain.nSamplesEachChain = ((int) (iterScale * instance.nThousandIters * 1000/(1.0*instance.ntempSS)));
 					ssMain.setnSamplesEachChain(ssMain.nSamplesEachChain);
 					ssMain.nChains = instance.ntempSS;
 					ssMain.alpha = 1.0/3.0;
+					ssMain.csmc_trans2tranv = instance.csmc_trans2tranv;
 					ssMain.run();	
 					instance.logZout.println(CSV.body(treeName,"SS", "NA",
 							ssMain.getNormalizer()));

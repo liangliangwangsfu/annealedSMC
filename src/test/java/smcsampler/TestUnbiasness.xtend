@@ -45,7 +45,7 @@ class TestUnbiasness {
       nSamplesPerTemperature = 2
       nBurnInPerTemperature = 0
       temperatureSchedule = new FixedTemperatureSchedule => [
-        nTemperatures = 2
+        nTemperatures = 3
       ]
     ]
     checkExpectedZEstimate(algo, exhausiveRand) 

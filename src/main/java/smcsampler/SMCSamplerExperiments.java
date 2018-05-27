@@ -26,14 +26,18 @@ import pty.mcmc.PhyloSampler;
 import pty.mcmc.ProposalDistribution;
 import pty.mcmc.UnrootedTreeState;
 import pty.pmcmc.PhyloPFSchedule;
+import pty.smc.LazyParticleFilter;
 import pty.smc.NCPriorPriorKernel;
 import pty.smc.PartialCoalescentState;
 import pty.smc.PriorPriorKernel;
+import pty.smc.LazyParticleFilter.LazyParticleKernel;
+import pty.smc.LazyParticleFilter.ParticleFilterOptions;
 import pty.smc.models.CTMC;
 import conifer.trees.StandardNonClockPriorDensity;
 import ev.ex.PhyloSamplerMain;
 import ev.ex.TreeGenerators;
 import ev.poi.processors.TreeDistancesProcessor;
+import ev.poi.processors.TreeTopologyProcessor;
 import ev.to.NJ;
 import fig.basic.IOUtils;
 import fig.basic.LogInfo;
@@ -316,6 +320,50 @@ public class SMCSamplerExperiments implements Runnable
 
 	public static enum InferenceMethod
 	{
+		CSMC {
+
+			@Override
+			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut,
+					String treeName) {
+				ParticleFilterOptions options = new ParticleFilterOptions();
+
+				// ParticleFilter<PartialCoalescentState> pc = new
+				// ParticleFilter<PartialCoalescentState>();
+				options.nParticles = (int) (iterScale * instance.nThousandIters * 1000);
+				options.nThreads = instance.nThreads;
+				options.resampleLastRound = true;
+				options.parallelizeFinalParticleProcessing = true;
+				options.finalMaxNUniqueParticles = instance.finalMaxNUniqueParticles;
+				options.maxNUniqueParticles = instance.maxNUniqueParticles;
+				options.rand = instance.mainRand;
+				options.verbose = instance.verbose;
+				// options.maxNGrow = 0;
+
+				Dataset dataset = DatasetUtils.fromAlignment(instance.data, instance.sequenceType);
+				CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites());
+				PartialCoalescentState init = PartialCoalescentState.initFastState(dataset, ctmc);
+				LazyParticleKernel pk2 = new PriorPriorKernel(init);
+				LazyParticleFilter<PartialCoalescentState> lpf = new LazyParticleFilter<PartialCoalescentState>(pk2,
+						options);
+				TreeDistancesProcessor tdp = new TreeDistancesProcessor();
+
+				if (instance.useTopologyProcessor) {
+					TreeTopologyProcessor trTopo = new TreeTopologyProcessor();
+					final double zHat = lpf.sample(tdp, trTopo);
+
+					Counter<UnrootedTree> urtCounter = trTopo.getUrtCounter();
+					LogInfo.logsForce("\n Number of unique unrooted trees: " + urtCounter.keySet().size());
+					for (UnrootedTree urt : urtCounter.keySet()) {
+						LogInfo.logsForce(urt);
+						LogInfo.logsForce(urtCounter.getCount(urt));
+					}
+				} else {
+					final double zHat = lpf.sample(tdp);
+					// LogInfo.logsForce("Norm:" + zHat);
+				}
+				return tdp;
+			}
+		},
 		MCMC {
 			@Override
 			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut, String treeName)

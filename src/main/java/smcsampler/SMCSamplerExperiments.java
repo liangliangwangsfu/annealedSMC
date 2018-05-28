@@ -339,8 +339,8 @@ public class SMCSamplerExperiments implements Runnable
 				options.verbose = instance.verbose;
 				// options.maxNGrow = 0;
 
-				Dataset dataset = DatasetUtils.fromAlignment(instance.data, instance.sequenceType);
-				CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites());
+				Dataset dataset = DatasetUtils.fromAlignment(instance.data, instance.sequenceType);				
+				CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites(), instance.csmc_trans2tranv);
 				PartialCoalescentState init = PartialCoalescentState.initFastState(dataset, ctmc);
 				LazyParticleKernel pk2 = new PriorPriorKernel(init);
 				LazyParticleFilter<PartialCoalescentState> lpf = new LazyParticleFilter<PartialCoalescentState>(pk2,
@@ -361,6 +361,36 @@ public class SMCSamplerExperiments implements Runnable
 					final double zHat = lpf.sample(tdp);
 					// LogInfo.logsForce("Norm:" + zHat);
 				}
+				return tdp;
+			}
+		},
+		CSMCNonClock {
+
+			@Override
+			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut,
+					String treeName) {
+				ParticleFilterOptions options = new ParticleFilterOptions();
+				// ParticleFilter<PartialCoalescentState> pc = new
+				// ParticleFilter<PartialCoalescentState>();
+				options.nParticles = (int) (iterScale * instance.nThousandIters * 1000);
+				options.nThreads = instance.nThreads;
+				options.resampleLastRound = true;
+				options.parallelizeFinalParticleProcessing = true;
+				options.finalMaxNUniqueParticles = instance.finalMaxNUniqueParticles;
+				options.maxNUniqueParticles = instance.maxNUniqueParticles;
+				options.rand = instance.mainRand;
+				options.verbose = instance.verbose;
+				// options.maxNGrow = 0;
+				Dataset dataset = DatasetUtils.fromAlignment(instance.data, instance.sequenceType);
+				CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites(), instance.csmc_trans2tranv);
+				PartialCoalescentState init = PartialCoalescentState.initFastState(instance.resampleRoot, dataset, ctmc,
+						false);
+				LazyParticleKernel pk2 = new NCPriorPriorKernel(init);
+				LazyParticleFilter<PartialCoalescentState> lpf = new LazyParticleFilter<PartialCoalescentState>(pk2,
+						options);
+				TreeDistancesProcessor tdp = new TreeDistancesProcessor();
+				final double zHat = lpf.sample(tdp);
+				LogInfo.logsForce("Norm:" + zHat);
 				return tdp;
 			}
 		},

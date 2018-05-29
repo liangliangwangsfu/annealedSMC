@@ -97,12 +97,15 @@ public class SMCSamplerExperiments implements Runnable
 	@Option public double smcmcmcMix = 0.5;
 	@Option public boolean betterStartVal=true;
 	@Option public SMCSampler.ResamplingStrategy resamplingStrategy=SMCSampler.ResamplingStrategy.ESS;
+	@Option public subSamplingSMCsampler.ResamplingStrategy resamplingStrategy2=subSamplingSMCsampler.ResamplingStrategy.ESS;
 	@Option
 	public int nCSMC = 10;
 	@Option
 	public int nUCSMC = 10;
 	@Option
 	public boolean adaptiveTempDiff = false;
+	@Option
+	public boolean runDSMCusingadaptiveTemp = false;
 	@Option
 	public int adaptiveType = 0;
 
@@ -115,9 +118,13 @@ public class SMCSamplerExperiments implements Runnable
 	@Option
 	public double essRatioThreshold = 0.7;
 	@Option public int nNumericalIntegration = 100000;
+	
+	@Option public int nSitesPerIndex = 10;
 
 	@Option
 	public int nAnnealing = 5000;
+	@Option
+	public int nSubsampling = 5000;
 	public  File data = null;
 	private File output = null;
 	private RootedTree goldrt;
@@ -186,7 +193,7 @@ public class SMCSamplerExperiments implements Runnable
 									InferenceMethod m = methods.get(i);
 						
 									int nRun = 1;
-									if (m==InferenceMethod.ANNEALING && adaptiveTempDiff)
+									if (m==InferenceMethod.ANNEALING && adaptiveTempDiff && runDSMCusingadaptiveTemp == true)
 										nRun = 2;
 									int nIter = Integer.MIN_VALUE;
 									for (int l = 0; l < nRun; l++) {
@@ -536,6 +543,126 @@ public class SMCSamplerExperiments implements Runnable
 				instance.nAnnealing = ppk.getCurrentIter();
 				return tdp;
 			}
+		},
+		SUBSAMPLING {
+			@Override
+			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance,
+					double iterScale, UnrootedTree goldut, String treeName)
+			{
+				// String resultFolder = Execution.getFile("results");
+				// PrintWriter out = IOUtils.openOutEasy(new File(new File(
+				// resultFolder), treeName + "logZEst.csv"));
+				// out.println(CSV.header("logZ", "varLogZ"));
+				subSamplingSMCsampler<UnrootedTreeState> pc = new subSamplingSMCsampler<UnrootedTreeState>();
+				// ParticleFilter<UnrootedTreeState> pc = new
+				// ParticleFilter<UnrootedTreeState>();
+				pc.N = (int) (iterScale * instance.nThousandIters * 1000);
+				// pc.N = (int) iterScale;
+				pc.setEss(pc.N);
+				pc.nThreads = instance.nThreads;
+				pc.resampleLastRound = false;
+				pc.rand = instance.mainRand;
+				pc.verbose = instance.verbose;
+				pc.setProcessSchedule(new PhyloPFSchedule());
+				// pc.resamplingStrategy =
+				// ParticleFilterSMCSampler.ResamplingStrategy.ESS;
+				pc.resamplingStrategy = instance.resamplingStrategy2;
+				//pc.adaptiveTempDiff = instance.adaptiveTempDiff;
+				//pc.alpha = instance.alphaSMCSampler;
+				pc.essRatioThreshold = instance.essRatioThreshold;
+				//pc.adaptiveType = instance.adaptiveType;
+				pc.setUseCESS(instance.useCESS);
+//				if(pc.adaptiveTempDiff == false && instance.usenewDSMC == false) {
+//					 String str =instance.output+"/"+"essTempDiffAdaptive00.csv";
+//					 pc.setDeterministicTemperatureDifference(readCSV.DeterministicTem(str));
+//				}
+//				if(instance.usenewDSMC == true) {
+
+				
+				//}
+//				String filename ="essTempDiffDeterministic.csv";
+//				String filename2 ="essTempDiffDeterministic00.csv";
+//				if (instance.adaptiveTempDiff) {
+//					filename = "essTempDiffAdaptive" + instance.adaptiveType
+//							+ ".csv";
+//					filename2 ="essTempDiffAdaptive00.csv";
+//				}
+					
+//				pc.smcSamplerOut = IOUtils.openOutEasy(new File(
+//						instance.output, filename));
+//				pc.smcSamplerOut2 = IOUtils.openOutEasy(new File(
+//						instance.output, filename2));
+				int T = instance.nSubsampling;
+				List<Double> originalTemp = new ArrayList<Double>();
+				if(instance.adaptiveTempDiff == true) {
+				   //String str =instance.output+"/"+"essTempDiffAdaptive00.csv";
+				   String str ="/Users/oudomame/Desktop/essTempDiffAdaptive3.csv";
+				   List<Double> temperatureDifferenceFromAnnealing = readCSV.DeterministicTem(str);
+				   T = temperatureDifferenceFromAnnealing.size()-1;			   
+				   originalTemp.add(temperatureDifferenceFromAnnealing.get(1));
+					for(int t = 1; t < T; t++) {
+						originalTemp.add(originalTemp.get(t-1) + temperatureDifferenceFromAnnealing.get(t+1));
+					}		   
+			    }else {
+					for(int t = 0; t < T; t++) {
+						originalTemp.add(Math.pow((1.0*t+1)/(T*1.0), 3));
+					}		    	
+			    }
+				
+				
+				List<Taxon> leaves = MSAParser.parseMSA(instance.data).taxa();
+				UnrootedTree initTree = initTree(new Random(3), leaves);
+				Gamma exponentialPrior = Gamma.exponential(10.0);
+				StandardNonClockPriorDensity priorDensity = new StandardNonClockPriorDensity(
+						exponentialPrior);
+				Dataset dataset = DatasetUtils.fromAlignment(instance.data, instance.sequenceType);	
+				int nSitesPerIndex = instance.nSitesPerIndex;
+				int nFakeSites = 0;
+				int nSites = dataset.nSites();
+				if((nSites/nSitesPerIndex)*nSitesPerIndex == nSites) {
+					nFakeSites = nSites/nSitesPerIndex;
+				}else {
+					nFakeSites = nSites/nSitesPerIndex + 1;
+				}
+				
+				CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites(),instance.csmc_trans2tranv);
+				UnrootedTreeState ncts = UnrootedTreeState.initFastState(initTree, dataset, ctmc, priorDensity);			
+//				if(dataset.observations().size()<=5)
+//					instance.marginalLogLike=numericalIntegratedMarginalLikelihood(instance.mainRand, ncts, 10.0, instance.nNumericalIntegration);
+
+				LogInfo.track("log prior and loglikelihood of the initial tree: ");
+				LogInfo.logsForce(ncts.getLogPrior()+" "+ncts.getLogLikelihood());
+				LogInfo.end_track();
+
+				ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
+				if(MSAParser.parseMSA(instance.data).nTaxa()<4)  proposalOptions.useStochasticNearestNeighborInterchangeProposal=false;
+				else
+					proposalOptions.useStochasticNearestNeighborInterchangeProposal=true;				
+				LinkedList<ProposalDistribution> proposalDistributions = new LinkedList<ProposalDistribution>();
+				// ParticleKernel<UnrootedTreeState> ppk
+				subSamplingKernel ppk = new subSamplingKernel(ncts, T, proposalDistributions, proposalOptions);
+				TreeDistancesProcessor tdp = new TreeDistancesProcessor();
+				pc.setData(dataset);
+				pc.setnSites(dataset.nSites());
+				pc.setnFakeSites(nFakeSites);
+				pc.setnSitesPerIndex(nSitesPerIndex);
+				//pc.setNewTemperature2(originalTemp, dataset.nSites());
+				pc.setNewTemperature2(originalTemp, nFakeSites);
+				//pc.setNewTemperatureDiff(dataset.nSites());
+				pc.sample(ppk, tdp);
+				String methodname = "Subsampling";				
+				instance.logZout.println(CSV.body(treeName,methodname,instance.marginalLogLike,
+						pc.estimateNormalizer()));
+				instance.logZout.flush();
+				LogInfo.track("Estimation of log(Z) ");
+				LogInfo.logsForce("Estimate of log(Z): "
+						+ pc.estimateNormalizer()
+						+ "; Estimate of variance of log(Z): "
+						+ pc.estimateNormalizerVariance());
+				LogInfo.end_track();
+				//instance.nAnnealing = ppk.getCurrentIter();
+				return tdp;
+			}		
 		};
 		abstract  TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut, String treeName);
 	}

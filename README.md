@@ -3,7 +3,7 @@ Summary
 
 <!-- [![Build Status](https://travis-ci.org/alexandrebouchard/phylosmcsampler.png?branch=master)](https://travis-ci.org/alexandrebouchard/phylosmcsampler) -->
 
-AnnealedSMC is ...
+AnnealedSMC is an annealed SMC algorithm with the adaptive determination of annealing parameters based on the relative conditional effective sample size for Bayesian phylogenetics.
 
 AnnealedSMC stands for ...
 

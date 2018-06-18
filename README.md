@@ -59,3 +59,5 @@ Usage
 -essRatioThreshold 0.5 -adaptiveTempDiff true  -runDSMCusingadaptiveTemp  false
 -adaptiveType 0     -csmc_trans2tranv 2.0   -mb_trans2tranv 2.0 -setJC false  -fixtratioInMb true  -treePrior unconstrained:exp(10)     -fixNucleotideFreq true   -nReplica  1   -repPerDataPt   10  -mainRand 452  -gen.rand 345 -useCESS true -useNNI true  -useLIS  false  -usenewSS false  -useRevSS false -ntempSS  50  -mcmcfac  1 -usenewDSMC  true
 -mrBayesPath  /Users/oudomame/Dropbox/phyloSoftware/mrbayes-3.2.6/src//mb  -neighborPath /Users/oudomame/Dropbox/phyloSoftware/phylip-3.69/exe//neighbor
+
+For settings in our experimental results, please refers to ``https://github.com/shijiaw/annealingExperiment''.

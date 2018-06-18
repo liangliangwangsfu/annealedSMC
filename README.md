@@ -28,7 +28,7 @@ repositories {
 }
 
 dependencies {
-  compile group: 'ca.sfu.stat', name: 'phylosmcsampler', version: '1.0.0'
+  compile group: 'ca.sfu.stat', name: 'annealedSMC', version: '1.0.0'
 }
 ```
 

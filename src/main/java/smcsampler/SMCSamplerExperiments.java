@@ -397,6 +397,11 @@ public class SMCSamplerExperiments implements Runnable
 						options);
 				TreeDistancesProcessor tdp = new TreeDistancesProcessor();
 				final double zHat = lpf.sample(tdp);
+				
+				String methodname = "CSMCNonClock";				
+				instance.logZout.println(CSV.body(treeName,methodname,zHat));
+				instance.logZout.flush();
+				
 				LogInfo.logsForce("Norm:" + zHat);
 				return tdp;
 			}

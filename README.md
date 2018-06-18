@@ -34,13 +34,13 @@ dependencies {
 
 ### Compile using the provided gradle script
 
-- Check out the source ``git clone git@github.com:liangliangwangsfu/phylosmcsampler.git``
+- Check out the source ``git clone git@github.com:liangliangwangsfu/annealedSMC.git``
 - Compile using ``./gradlew installDist``
-- Add the jars in ``build/install/phylosmcsampler/lib/`` into your classpath
+- Add the jars in ``build/install/annealedSMC/lib/`` into your classpath
 
 ### Use in eclipse
 
-- Check out the source ``git clone git@github.com:liangliangwangsfu/phylosmcsampler.git``
+- Check out the source ``git clone git@github.com:liangliangwangsfu/annealedSMC.git``
 - Type ``gradle eclipse`` from the root of the repository
 - From eclipse:
   - ``Import`` in ``File`` menu

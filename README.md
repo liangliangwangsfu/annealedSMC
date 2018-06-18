@@ -3,9 +3,8 @@ Summary
 
 <!-- [![Build Status](https://travis-ci.org/alexandrebouchard/phylosmcsampler.png?branch=master)](https://travis-ci.org/alexandrebouchard/phylosmcsampler) -->
 
-AnnealedSMC is a recently proposed algorithm with the adaptive determination of annealing parameters based on the relative conditional effective sample size for Bayesian phylogenetics.
-
-AnnealedSMC stands for ...
+AnnealedSMC is a recently proposed algorithm (annealed sequential Monte Carlo) with the adaptive determination of annealing parameters based on the relative conditional effective sample size for Bayesian phylogenetics.
+This algorithm provides an unbiased estimator for the probability of the data. This unbiasedness property can be used for the purpose of testing the correctness of posterior simulation software. Unlike the previous SMC methods in phylogenetics, the annealed SMC has the same state space for all the intermediate distributions, which allows standard Markov chain Monte Carlo (MCMC) tree moves to be utilized as the basis for SMC proposal distributions.
 
 
 Installation

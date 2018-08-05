@@ -109,7 +109,7 @@ public class SMCSamplerExperiments implements Runnable
 	@Option
 	public boolean adaptiveTempDiff = false;
 	@Option
-	public boolean runDSMCusingadaptiveTemp = false;
+	public boolean runDSMCusingadaptiveTemp = true;
 	@Option
 	public int adaptiveType = 0;
 

@@ -121,7 +121,7 @@ public class SMCSamplerExperiments implements Runnable
 
 	@Option
 	public double essRatioThreshold = 0.7;
-	@Option public int nNumericalIntegration = 100000;
+	@Option public int nNumericalIntegration = 1000;
 	
 	@Option public int nSitesPerIndex = 10;
 

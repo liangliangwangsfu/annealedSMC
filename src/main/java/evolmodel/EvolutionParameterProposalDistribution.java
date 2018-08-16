@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Random;
 import evolmodel.EvolutionParameterProposalDistribution.Util.Trans2tranvProposal;
 import nuts.math.Sampling;
-import pty.UnrootedTree;
 import fig.basic.ListUtils;
 import fig.basic.Option;
 import fig.basic.Pair;
@@ -36,8 +35,7 @@ public interface EvolutionParameterProposalDistribution
 	public static class Util {
 		public static final EvolutionParameterProposalDistribution.Options _defaultProposalDistributionOptions = new EvolutionParameterProposalDistribution.Options();
 
-		public static List<EvolutionParameterProposalDistribution> proposalList(Options options,
-				UnrootedTree nct, Random rand) {
+		public static List<EvolutionParameterProposalDistribution> proposalList(Options options, Random rand) {
 			List<EvolutionParameterProposalDistribution> result = new ArrayList<EvolutionParameterProposalDistribution>();
 			if (options.useK2PProposal) result.add(new K2PProposal(options.a_alpha));		
 			Collections.shuffle(result, rand);
@@ -99,7 +97,6 @@ public interface EvolutionParameterProposalDistribution
 			for (int i = 0; i < rates.length; i++)alphas[i]=scale*rates[i];	      	        	    		
 			return Dirichlet.logProb(alphas, ListUtils.sum(alphas), rates);
 		}
-
 	}
 
 

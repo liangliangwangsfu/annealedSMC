@@ -37,6 +37,7 @@ import smcsampler.AnnealingKernel;
 import smcsampler.LinkedImportanceSampling;
 import smcsampler.MrBayes;
 import smcsampler.SMCSampler;
+import smcsampler.SMCSamplerExperiments;
 import smcsampler.SSreverse;
 import smcsampler.SteppingStone;
 import smcsampler.phyloMCMC2;
@@ -193,7 +194,7 @@ public class ModelComparisonExperiments implements Runnable
 
 			// evaluate the likelihood of the inferred tree
 			Dataset dataset = DatasetUtils.fromAlignment(this.data, sequenceType);
-			CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites(),csmc_trans2tranv);
+			CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites(),csmc_trans2tranv); //TODO:to be updated when the parameters are estimated 
 
 			UnrootedTree goldut = 
 					(generator.useGutellData ||!useDataGenerator)?
@@ -606,9 +607,101 @@ public class ModelComparisonExperiments implements Runnable
 				StandardNonClockPriorDensity priorDensity = new StandardNonClockPriorDensity(
 						exponentialPrior);
 				Dataset dataset = DatasetUtils.fromAlignment(instance.data, instance.sequenceType);		        
-				//CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites(),instance.csmc_trans2tranv);
-				 
-				EvolutionParameters evolPara = new EvolutionParameters.GTR(new double[] {instance.csmc_trans2tranv}); 
+				CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites(),instance.csmc_trans2tranv);
+				UnrootedTreeState ncts = UnrootedTreeState.initFastState(initTree, dataset, ctmc, priorDensity);			
+				if(dataset.observations().size()<=5)
+					instance.marginalLogLike=numericalIntegratedMarginalLikelihood(instance.mainRand, ncts, 10.0, instance.nNumericalIntegration);
+
+				LogInfo.track("log prior and loglikelihood of the initial tree: ");
+				LogInfo.logsForce(ncts.getLogPrior()+" "+ncts.getLogLikelihood());
+				LogInfo.end_track();
+
+				ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
+				if(MSAParser.parseMSA(instance.data).nTaxa()<4)  proposalOptions.useStochasticNearestNeighborInterchangeProposal=false;
+				else
+					proposalOptions.useStochasticNearestNeighborInterchangeProposal=true;				
+				LinkedList<ProposalDistribution> proposalDistributions = new LinkedList<ProposalDistribution>();
+				// ParticleKernel<UnrootedTreeState> ppk
+				AnnealingKernel ppk = new AnnealingKernel(ncts, 1.0/instance.nAnnealing, proposalDistributions, proposalOptions);				
+				TreeDistancesProcessor tdp = new TreeDistancesProcessor();
+				pc.sample(ppk, tdp);
+				String methodname=instance.adaptiveTempDiff?"Adaptive":"Deterministic";				
+				instance.logZout.println(CSV.body(treeName,methodname,instance.marginalLogLike,
+						pc.estimateNormalizer()));
+				instance.logZout.flush();
+				LogInfo.track("Estimation of log(Z) ");
+				LogInfo.logsForce("Estimate of log(Z): "
+						+ pc.estimateNormalizer()
+						+ "; Estimate of variance of log(Z): "
+						+ pc.estimateNormalizerVariance());
+				LogInfo.end_track();
+				instance.nAnnealing = ppk.getCurrentIter();
+				return tdp;
+			}
+		},
+		ANNEALINGEvolPara {
+
+			@Override
+			public TreeDistancesProcessor doIt(ModelComparisonExperiments instance,
+					double iterScale, UnrootedTree goldut, String treeName)
+			{
+				// String resultFolder = Execution.getFile("results");
+				// PrintWriter out = IOUtils.openOutEasy(new File(new File(
+				// resultFolder), treeName + "logZEst.csv"));
+				// out.println(CSV.header("logZ", "varLogZ"));
+				SMCSampler<UnrootedTreeEvolParameterState> pc = new SMCSampler<UnrootedTreeEvolParameterState>();
+				// ParticleFilter<UnrootedTreeState> pc = new
+				// ParticleFilter<UnrootedTreeState>();
+				pc.N = (int) (iterScale * instance.nThousandIters * 1000);
+				// pc.N = (int) iterScale;
+				pc.setEss(pc.N);
+				pc.nThreads = instance.nThreads;
+				pc.resampleLastRound = true;
+				pc.rand = instance.mainRand;
+				pc.verbose = instance.verbose;
+				pc.setProcessSchedule(new PhyloPFSchedule());
+				// pc.resamplingStrategy =
+				// ParticleFilterSMCSampler.ResamplingStrategy.ESS;
+				pc.resamplingStrategy = instance.resamplingStrategy;
+				pc.adaptiveTempDiff = instance.adaptiveTempDiff;
+				pc.alpha = instance.alphaSMCSampler;
+				pc.essRatioThreshold = instance.essRatioThreshold;
+				pc.adaptiveType = instance.adaptiveType;
+				pc.setUseCESS(instance.useCESS);
+				if(pc.adaptiveTempDiff == false && instance.usenewDSMC == false) {
+					 String str =instance.output+"/"+"essTempDiffAdaptive00.csv";
+					 pc.setDeterministicTemperatureDifference(readCSV.DeterministicTem(str));
+				}
+				if(instance.usenewDSMC == true) {
+					int T = instance.nAnnealing;
+					List<Double> DeterministicTD = new ArrayList<Double>();
+					DeterministicTD.add(0.0);
+					for(int t = 1; t < T+1; t++) {
+						DeterministicTD.add(Math.pow((t*1.0)/(T*1.0), 3)-Math.pow(((t-1)*1.0)/(T*1.0), 3));
+					}
+					pc.setDeterministicTemperatureDifference(DeterministicTD);
+				}
+				String filename ="essTempDiffDeterministic.csv";
+				String filename2 ="essTempDiffDeterministic00.csv";
+				if (instance.adaptiveTempDiff) {
+					filename = "essTempDiffAdaptive" + instance.adaptiveType
+							+ ".csv";
+					filename2 ="essTempDiffAdaptive00.csv";
+				}
+					
+				pc.smcSamplerOut = IOUtils.openOutEasy(new File(
+						instance.output, filename));
+				pc.smcSamplerOut2 = IOUtils.openOutEasy(new File(
+						instance.output, filename2));
+				List<Taxon> leaves = MSAParser.parseMSA(instance.data).taxa();
+				UnrootedTree initTree = initTree(new Random(3), leaves);
+				Gamma exponentialPrior = Gamma.exponential(10.0);
+				StandardNonClockPriorDensity priorDensity = new StandardNonClockPriorDensity(
+						exponentialPrior);
+				Dataset dataset = DatasetUtils.fromAlignment(instance.data, instance.sequenceType);		        
+
+				
+				EvolutionParameters evolPara = new EvolutionParameters.K2P(instance.csmc_trans2tranv); 
 				CTMC ctmc = evolModel.instantiateCTMC(evolPara, dataset.nSites());
 				
 				UnrootedTreeState ncts = UnrootedTreeState.initFastState(initTree, dataset, ctmc, priorDensity);			
@@ -628,8 +721,7 @@ public class ModelComparisonExperiments implements Runnable
 				EvolutionParameterProposalDistribution.Options evolProposalOptions = EvolutionParameterProposalDistribution.Util._defaultProposalDistributionOptions;
 				LinkedList<EvolutionParameterProposalDistribution> evolProposalDistributions = new LinkedList<EvolutionParameterProposalDistribution>();
 								
-				// ParticleKernel<UnrootedTreeState> ppk
-				AnnealingKernel ppk = new AnnealingKernel(ncts, 1.0/instance.nAnnealing, proposalDistributions, proposalOptions);				
+				AnnealingKernelTreeEvolPara ppk = new AnnealingKernelTreeEvolPara(dataset, priorDensity, new UnrootedTreeEvolParameterState(ncts, evolPara), 1.0/instance.nAnnealing, proposalDistributions, proposalOptions, evolProposalDistributions, evolProposalOptions);				
 				TreeDistancesProcessor tdp = new TreeDistancesProcessor();
 				pc.sample(ppk, tdp);
 				String methodname=instance.adaptiveTempDiff?"Adaptive":"Deterministic";				

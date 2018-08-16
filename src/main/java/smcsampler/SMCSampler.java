@@ -9,6 +9,7 @@ import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.solvers.PegasusSolver;
 
 import ev.poi.processors.TreeDistancesProcessor;
+import evolmodel.UnrootedTreeEvolParameterState;
 import monaco.process.ProcessSchedule;
 import nuts.io.CSV;
 import nuts.lang.ArrayUtils;
@@ -251,10 +252,22 @@ public final class SMCSampler<S>
 
 	public double temperatureDifference(final double alpha,double absoluteAccuracy,double min,double max) {
 		final double[] logLike = new double[samples.size()];
+		if(samples.get(0) instanceof UnrootedTreeState)
+		{
 		for (int n = 0; n < samples.size(); n++) {
 			UnrootedTreeState urt = ((UnrootedTreeState) samples.get(n));
 			logLike[n] = urt.getLogLikelihood(); 
 		}
+		}
+		
+		if(samples.get(0) instanceof UnrootedTreeEvolParameterState)    //TODO:
+		{
+		for (int n = 0; n < samples.size(); n++) {
+			UnrootedTreeState urt = ((UnrootedTreeEvolParameterState) samples.get(n)).getUnrootedTreeState();
+			logLike[n] = urt.getLogLikelihood(); 
+		}
+		}
+		
 		int maxEval = 100;
 		UnivariateFunction f = new UnivariateFunction() {
 			public double value(double x) {
@@ -335,7 +348,7 @@ public final class SMCSampler<S>
 			//			System.out.println(cess);
 			if(smcSamplerOut!=null)
 			{
-				smcSamplerOut.println(CSV.body(t, ess,kernel.getTemperatureDifference(), kernel.getTemperature()));
+				smcSamplerOut.println(CSV.body(t, ess,kernel.getTemperatureDifference(), kernel.getTemperature()));				
 				//smcSamplerOut.println(CSV.body(kernel.getTemperatureDifference()));
 				smcSamplerOut.flush();
 			}
@@ -375,7 +388,9 @@ public final class SMCSampler<S>
 						LogInfo.logs("Particle " + (n + 1) + "/"
 								+ normalizedWeights.length);
 					if (samples.get(n) != null) {
-						tdp.process(samples.get(n), normalizedWeights[n]);
+						if(samples.get(n) instanceof UnrootedTreeState) tdp.process(samples.get(n), normalizedWeights[n]); //TODO: write a new processor for UnrootedTreeEvolParameterState
+						else 
+						if(samples.get(n) instanceof UnrootedTreeEvolParameterState) tdp.process( ((UnrootedTreeEvolParameterState) samples.get(n)).getUnrootedTreeState(), normalizedWeights[n]); 	
 						samples.set(n, null);
 					}
 				}

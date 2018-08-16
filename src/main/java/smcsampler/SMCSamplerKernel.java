@@ -1,8 +1,6 @@
 package smcsampler;
 
-import java.util.List;
 import java.util.Random;
-
 import fig.basic.Pair;
 
 /**

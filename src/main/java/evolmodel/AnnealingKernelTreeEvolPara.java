@@ -1,4 +1,4 @@
-package smcsampler;
+package evolmodel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -9,10 +9,13 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
 import com.google.common.collect.Lists;
+import conifer.trees.StandardNonClockPriorDensity;
 import pty.UnrootedTree;
+import pty.io.Dataset;
 import pty.mcmc.ProposalDistribution;
-//import pty.mcmc.ProposalDistribution;
 import pty.mcmc.UnrootedTreeState;
+import pty.smc.models.CTMC;
+import smcsampler.SMCSamplerKernel;
 import fig.basic.Option;
 import fig.basic.Pair;
 import fig.basic.UnorderedPair;
@@ -22,21 +25,27 @@ import goblin.Taxon;
 import nuts.math.Graph;
 import nuts.math.HashGraph;
 
-public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
+public class AnnealingKernelTreeEvolPara implements SMCSamplerKernel<UnrootedTreeEvolParameterState>
 {
 	@Option public static double AnnealDeltaProposalRate = 10.0;    
-	private int nAnnealing = 500;
 	@Option public static boolean printBranchLengthMagnitudes = false;
-	private final UnrootedTreeState initial;
+	private final UnrootedTreeEvolParameterState initial;
 	private double temperature = 0;
 	private double newtemperature = 0;
 	private double defaultTemperatureDifference = 0;
 	private boolean initializing = true;
 	private int currentIter=0;
+	private EvolutionModel evolModel = EvolutionModel.K2P; 
+	private final Dataset dataset;
+	private final StandardNonClockPriorDensity treePriorDensity; 
 
 	private LinkedList<ProposalDistribution> proposalDistributions = null;
 	private ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
 
+	private LinkedList<EvolutionParameterProposalDistribution> evolProposalDistributions = null;
+	private EvolutionParameterProposalDistribution.Options evolProposalOptions = EvolutionParameterProposalDistribution.Util._defaultProposalDistributionOptions;
+
+	
 	public double getTemperature() {
 		return temperature;
 	}
@@ -65,34 +74,38 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 		}			
 		//		LogInfo.logs("temperature: " + temperature +"  newtemperature: " + newtemperature);
 	}
-	public AnnealingKernel(UnrootedTreeState initial, double defaultTemperatureDifference, LinkedList<ProposalDistribution> proposalDistributions, ProposalDistribution.Options proposalOptions) 
+
+	public AnnealingKernelTreeEvolPara(Dataset dataset, StandardNonClockPriorDensity treePriorDensity, UnrootedTreeEvolParameterState initial, double defaultTemperatureDifference, LinkedList<ProposalDistribution> proposalDistributions, ProposalDistribution.Options proposalOptions, LinkedList<EvolutionParameterProposalDistribution> evolProposalDistributions, EvolutionParameterProposalDistribution.Options evolProposalOptions) 
 	{
+		this.dataset = dataset;
+		this.treePriorDensity = treePriorDensity;  
 		this.initial = initial;		 
 		this.proposalDistributions=proposalDistributions;
 		this.proposalOptions=proposalOptions;
 		this.defaultTemperatureDifference=defaultTemperatureDifference;
+		this.evolProposalDistributions=evolProposalDistributions;
+		this.evolProposalOptions=evolProposalOptions;		
 	}
-	public UnrootedTreeState getInitial() { return initial; }
+	
+	public UnrootedTreeEvolParameterState getInitial() { return initial; }
 
 	public boolean isLastIter()
 	{
 		return temperature >= 1.0;
 	}
 
-	public UnrootedTreeState sampleFromPrior(Random rand, UnrootedTreeState current)
+	public UnrootedTreeEvolParameterState sampleFromPrior(Random rand, UnrootedTreeEvolParameterState current)
 	{ 
 		Gamma exponentialPrior = Gamma.exponential(AnnealDeltaProposalRate);
-		//		RootedTree proprosedRTree = TreeGenerators.sampleExpNonclock(rand, current.getUnrootedTree().leaves(), AnnealDeltaProposalRate);
-		//		UnrootedTreeState proposedState = current.copyAndChange(UnrootedTree.fromRooted(proprosedRTree));
-		//		RootedTree proprosedRTree = generate(rand, exponentialPrior,current.getUnrootedTree().leaves()); 		
-		UnrootedTreeState proposedState = current.copyAndChange(generate(rand, exponentialPrior, current.getUnrootedTree().leaves()));				
-		return proposedState;
+		UnrootedTreeState proposedState = current.getUnrootedTreeState().copyAndChange(generate(rand, exponentialPrior, current.getUnrootedTreeState().getUnrootedTree().leaves()));
+		current.getEvolParameter().sampleFromPrior(rand);		
+		return new UnrootedTreeEvolParameterState(proposedState, current.getEvolParameter());
 	}
 
 	@Override
-	public Pair<UnrootedTreeState, Double> next(
+	public Pair<UnrootedTreeEvolParameterState, Double> next(
 			Random rand,
-			UnrootedTreeState current)
+			UnrootedTreeEvolParameterState current)
 	{
 		if (currentIter==0) 
 		{
@@ -100,22 +113,29 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 			return Pair.makePair(current, 0.0); 
 		}
 		ProposalDistribution proposal = nextProposal(rand);         
-		UnrootedTree currenturt=current.getNonClockTree();
-		Pair<UnrootedTree,Double> result = proposal.propose(currenturt, rand);
-		UnrootedTreeState  proposedState = null;
-		double logw = temperatureDifference * current.logLikelihood();
+		UnrootedTree currenturt=current.getUnrootedTreeState().getNonClockTree();
+		Pair<UnrootedTree,Double> result = proposal.propose(currenturt, rand);		
+		UnrootedTreeState  proposedUrootedTreeState = null;				
+		UnrootedTreeEvolParameterState  proposedState = null;
+		double logw = temperatureDifference * current.getUnrootedTreeState().logLikelihood();
 		if (result != null) // might happen e.g. when trying to do nni with 3 leaves
 		{
-			double logTargetDenCurrent=logTargetDensity(newtemperature,current);
-			proposedState = current.copyAndChange(result.getFirst());
-			final double logProposalRatio = result.getSecond();
-			double logLikRatio = logTargetDensity(newtemperature,proposedState) -logTargetDenCurrent;  				
-			final double ratio = Math.min(1,
-					Math.exp(logProposalRatio + logLikRatio));
+			double logTargetDenCurrent=logTargetDensity(newtemperature,current.getUnrootedTreeState());
+			EvolutionParameterProposalDistribution evolParaProposal = nextEvolParaProposal(rand);  
+			Pair<EvolutionParameters, Double> evolProposalRe = evolParaProposal.propose(current.getEvolParameter(), rand);
+			EvolutionParameters proposedEvolPar = evolProposalRe.getFirst();    // proposed evolutionary parameters
+			CTMC ctmc = evolModel.instantiateCTMC(proposedEvolPar, dataset.nSites());			
+			proposedUrootedTreeState = UnrootedTreeState.initFastState(result.getFirst(), dataset, ctmc, treePriorDensity);  // result.getFirst() gives the proposed tree and ctmc is updated with the newly proposed evolutionary parameters			
+			final double logProposalRatio = result.getSecond()+evolProposalRe.getSecond();  // proposal ratio (tree and evolutionary parameters)
+			double logLikRatio = logTargetDensity(newtemperature,proposedUrootedTreeState) -logTargetDenCurrent;  	//TODO: double check if logTargetDensity needs to be updated or not: i.e. adding the priors for the evolutionary parameters? 			
+			final double ratio = Math.min(1, Math.exp(logProposalRatio + logLikRatio));
 			if (Double.isNaN(ratio))
 				throw new RuntimeException();
 			if (rand.nextDouble() >= ratio) {
 				proposedState = current;
+			}else
+			{
+				proposedState = new UnrootedTreeEvolParameterState(proposedUrootedTreeState, proposedEvolPar);
 			}
 		}
 		temperature = newtemperature;
@@ -123,8 +143,7 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 	}
 
 	public double logTargetDensity(double temperature, UnrootedTreeState uts)
-	{
-		//return uts.getLogPrior()+ newtemperature*uts.getLogLikelihood();	
+	{	
 		return uts.getLogPrior()+ temperature*uts.getLogLikelihood();
 	}
 
@@ -141,12 +160,22 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 	private ProposalDistribution nextProposal(Random rand) {
 		if (proposalDistributions.isEmpty())
 			proposalDistributions.addAll(ProposalDistribution.Util
-					.proposalList(proposalOptions, initial.getNonClockTree(),
+					.proposalList(proposalOptions, initial.getUnrootedTreeState().getNonClockTree(),
 							rand));
 		return proposalDistributions.get(rand.nextInt(proposalDistributions
 				.size()));
 	}
+	
+	private EvolutionParameterProposalDistribution nextEvolParaProposal(Random rand) {
+		if (evolProposalDistributions.isEmpty())
+			evolProposalDistributions.addAll(EvolutionParameterProposalDistribution.Util
+					.proposalList(evolProposalOptions, rand));
+		return evolProposalDistributions.get(rand.nextInt(evolProposalDistributions
+				.size()));
+	}
 
+	
+	
 	//	private double prior(UnrootedTree urt) {
 	//		double result = 0.0;
 	//		for (UnorderedPair<Taxon, Taxon> edge : urt.edges()) {

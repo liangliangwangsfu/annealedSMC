@@ -1,4 +1,4 @@
-package smcsampler;
+package evolmodel;
 
 import static nuts.io.IO.writeToDisk;
 import static nuts.util.CollUtils.list;
@@ -33,6 +33,17 @@ import pty.smc.PriorPriorKernel;
 import pty.smc.LazyParticleFilter.LazyParticleKernel;
 import pty.smc.LazyParticleFilter.ParticleFilterOptions;
 import pty.smc.models.CTMC;
+import smcsampler.AnnealingKernel;
+import smcsampler.LinkedImportanceSampling;
+import smcsampler.MrBayes;
+import smcsampler.SMCSampler;
+import smcsampler.SSreverse;
+import smcsampler.SteppingStone;
+import smcsampler.phyloMCMC2;
+import smcsampler.readCSV;
+import smcsampler.subSamplingKernel;
+import smcsampler.subSamplingSMCsampler;
+import smcsampler.SMCSampler.ResamplingStrategy;
 import conifer.trees.StandardNonClockPriorDensity;
 import ev.ex.PhyloSamplerMain;
 import ev.ex.TreeGenerators;
@@ -47,7 +58,7 @@ import fig.exec.Execution;
 import fig.prob.Gamma;
 import goblin.Taxon;
 
-public class SMCSamplerExperiments implements Runnable
+public class ModelComparisonExperiments implements Runnable
 {
 	@Option public boolean resampleRoot = false;
 	@Option public boolean useLIS = false;
@@ -58,6 +69,7 @@ public class SMCSamplerExperiments implements Runnable
 	@Option public int ntempSS = 10;
 	@Option public int mcmcfac = 1;
 	@Option public InferenceMethod refMethod = InferenceMethod.MB;
+	@Option public static EvolutionModel evolModel = EvolutionModel.K2P;  
 	@Option public double nThousandIters = 10;
 	@Option public ArrayList<InferenceMethod> methods = list(Arrays.asList(InferenceMethod.ANNEALING,InferenceMethod.MB));
 	@Option public ArrayList<Double> iterScalings = list(Arrays.asList(1.0));
@@ -136,7 +148,7 @@ public class SMCSamplerExperiments implements Runnable
 
 	public static void main(String[] args)
 	{
-		IO.run(args, new SMCSamplerExperiments(), 
+		IO.run(args, new ModelComparisonExperiments(), 
 				"pcs", PartialCoalescentState.class,
 				"mb",   MrBayes.instance, 
 				"gen", generator,
@@ -329,7 +341,7 @@ public class SMCSamplerExperiments implements Runnable
 		CSMC {
 
 			@Override
-			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut,
+			public TreeDistancesProcessor doIt(ModelComparisonExperiments instance, double iterScale, UnrootedTree goldut,
 					String treeName) {
 				ParticleFilterOptions options = new ParticleFilterOptions();
 
@@ -373,7 +385,7 @@ public class SMCSamplerExperiments implements Runnable
 		CSMCNonClock {
 
 			@Override
-			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut,
+			public TreeDistancesProcessor doIt(ModelComparisonExperiments instance, double iterScale, UnrootedTree goldut,
 					String treeName) {
 				ParticleFilterOptions options = new ParticleFilterOptions();
 				// ParticleFilter<PartialCoalescentState> pc = new
@@ -407,7 +419,7 @@ public class SMCSamplerExperiments implements Runnable
 		},
 		MCMC {
 			@Override
-			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
+			public TreeDistancesProcessor doIt(ModelComparisonExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
 			{
 
 				PhyloSampler._defaultPhyloSamplerOptions.rand = mainRand;
@@ -480,7 +492,7 @@ public class SMCSamplerExperiments implements Runnable
 		},	
 		MCMC2 {
 			@Override
-			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
+			public TreeDistancesProcessor doIt(ModelComparisonExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
 			{
 
 				//PhyloSampler._defaultPhyloSamplerOptions.rand = mainRand;
@@ -498,7 +510,7 @@ public class SMCSamplerExperiments implements Runnable
 		},
 		MB {
 			@Override
-			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance,
+			public TreeDistancesProcessor doIt(ModelComparisonExperiments instance,
 					double iterScale,  UnrootedTree goldut, String treeName)
 			{
 				MrBayes mb = MrBayes.instance;
@@ -537,7 +549,7 @@ public class SMCSamplerExperiments implements Runnable
 		ANNEALING {
 
 			@Override
-			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance,
+			public TreeDistancesProcessor doIt(ModelComparisonExperiments instance,
 					double iterScale, UnrootedTree goldut, String treeName)
 			{
 				// String resultFolder = Execution.getFile("results");
@@ -594,7 +606,11 @@ public class SMCSamplerExperiments implements Runnable
 				StandardNonClockPriorDensity priorDensity = new StandardNonClockPriorDensity(
 						exponentialPrior);
 				Dataset dataset = DatasetUtils.fromAlignment(instance.data, instance.sequenceType);		        
-				CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites(),instance.csmc_trans2tranv);
+				//CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites(),instance.csmc_trans2tranv);
+				 
+				EvolutionParameters evolPara = new EvolutionParameters.GTR(new double[] {instance.csmc_trans2tranv}); 
+				CTMC ctmc = evolModel.instantiateCTMC(evolPara, dataset.nSites());
+				
 				UnrootedTreeState ncts = UnrootedTreeState.initFastState(initTree, dataset, ctmc, priorDensity);			
 				if(dataset.observations().size()<=5)
 					instance.marginalLogLike=numericalIntegratedMarginalLikelihood(instance.mainRand, ncts, 10.0, instance.nNumericalIntegration);
@@ -606,8 +622,12 @@ public class SMCSamplerExperiments implements Runnable
 				ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
 				if(MSAParser.parseMSA(instance.data).nTaxa()<4)  proposalOptions.useStochasticNearestNeighborInterchangeProposal=false;
 				else
-					proposalOptions.useStochasticNearestNeighborInterchangeProposal=true;				
+					proposalOptions.useStochasticNearestNeighborInterchangeProposal=true;		
 				LinkedList<ProposalDistribution> proposalDistributions = new LinkedList<ProposalDistribution>();
+				
+				EvolutionParameterProposalDistribution.Options evolProposalOptions = EvolutionParameterProposalDistribution.Util._defaultProposalDistributionOptions;
+				LinkedList<EvolutionParameterProposalDistribution> evolProposalDistributions = new LinkedList<EvolutionParameterProposalDistribution>();
+								
 				// ParticleKernel<UnrootedTreeState> ppk
 				AnnealingKernel ppk = new AnnealingKernel(ncts, 1.0/instance.nAnnealing, proposalDistributions, proposalOptions);				
 				TreeDistancesProcessor tdp = new TreeDistancesProcessor();
@@ -628,7 +648,7 @@ public class SMCSamplerExperiments implements Runnable
 		},
 		SUBSAMPLING {
 			@Override
-			public TreeDistancesProcessor doIt(SMCSamplerExperiments instance,
+			public TreeDistancesProcessor doIt(ModelComparisonExperiments instance,
 					double iterScale, UnrootedTree goldut, String treeName)
 			{
 				// String resultFolder = Execution.getFile("results");
@@ -746,7 +766,7 @@ public class SMCSamplerExperiments implements Runnable
 				return tdp;
 			}		
 		};
-		abstract  TreeDistancesProcessor doIt(SMCSamplerExperiments instance, double iterScale, UnrootedTree goldut, String treeName);
+		abstract  TreeDistancesProcessor doIt(ModelComparisonExperiments instance, double iterScale, UnrootedTree goldut, String treeName);
 	}
 
 

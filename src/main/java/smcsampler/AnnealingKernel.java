@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
 import com.google.common.collect.Lists;
+
+import evolmodel.EvolutionParameterProposalDistribution;
 import pty.UnrootedTree;
 import pty.mcmc.ProposalDistribution;
 //import pty.mcmc.ProposalDistribution;
@@ -33,10 +35,15 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 	private double defaultTemperatureDifference = 0;
 	private boolean initializing = true;
 	private int currentIter=0;
+	private boolean sampleEvolPara = false; 
 
 	private LinkedList<ProposalDistribution> proposalDistributions = null;
 	private ProposalDistribution.Options proposalOptions = ProposalDistribution.Util._defaultProposalDistributionOptions;
 
+	private LinkedList<EvolutionParameterProposalDistribution> evolProposalDistributions = null;
+	private EvolutionParameterProposalDistribution.Options evolProposalOptions = EvolutionParameterProposalDistribution.Util._defaultProposalDistributionOptions;
+
+	
 	public double getTemperature() {
 		return temperature;
 	}
@@ -72,6 +79,18 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 		this.proposalOptions=proposalOptions;
 		this.defaultTemperatureDifference=defaultTemperatureDifference;
 	}
+	
+	
+	public AnnealingKernel(UnrootedTreeState initial, double defaultTemperatureDifference, LinkedList<ProposalDistribution> proposalDistributions, ProposalDistribution.Options proposalOptions, LinkedList<EvolutionParameterProposalDistribution> evolProposalDistributions, EvolutionParameterProposalDistribution.Options evolProposalOptions) 
+	{
+		this.initial = initial;		 
+		this.proposalDistributions=proposalDistributions;
+		this.proposalOptions=proposalOptions;
+		this.defaultTemperatureDifference=defaultTemperatureDifference;
+		this.evolProposalDistributions=evolProposalDistributions;
+		this.evolProposalOptions=evolProposalOptions;		
+	}
+	
 	public UnrootedTreeState getInitial() { return initial; }
 
 	public boolean isLastIter()
@@ -101,7 +120,7 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 		}
 		ProposalDistribution proposal = nextProposal(rand);         
 		UnrootedTree currenturt=current.getNonClockTree();
-		Pair<UnrootedTree,Double> result = proposal.propose(currenturt, rand);
+		Pair<UnrootedTree,Double> result = proposal.propose(currenturt, rand);		
 		UnrootedTreeState  proposedState = null;
 		double logw = temperatureDifference * current.logLikelihood();
 		if (result != null) // might happen e.g. when trying to do nni with 3 leaves
@@ -123,8 +142,7 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 	}
 
 	public double logTargetDensity(double temperature, UnrootedTreeState uts)
-	{
-		//return uts.getLogPrior()+ newtemperature*uts.getLogLikelihood();	
+	{	
 		return uts.getLogPrior()+ temperature*uts.getLogLikelihood();
 	}
 
@@ -146,7 +164,18 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 		return proposalDistributions.get(rand.nextInt(proposalDistributions
 				.size()));
 	}
+	
+	private EvolutionParameterProposalDistribution nextEvolParaProposal(Random rand) {
+		if (evolProposalDistributions.isEmpty())
+			evolProposalDistributions.addAll(EvolutionParameterProposalDistribution.Util
+					.proposalList(evolProposalOptions, initial.getNonClockTree(),
+							rand));
+		return evolProposalDistributions.get(rand.nextInt(evolProposalDistributions
+				.size()));
+	}
 
+	
+	
 	//	private double prior(UnrootedTree urt) {
 	//		double result = 0.0;
 	//		for (UnorderedPair<Taxon, Taxon> edge : urt.edges()) {
@@ -217,6 +246,14 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 		for (UnorderedPair<Taxon, Taxon> edge : result)		    			    
 			branchLengths.put(edge, branchDistribution.sampleObject(random));
 		return new UnrootedTree(topo, branchLengths);
+	}
+
+	public boolean isSampleEvolPara() {
+		return sampleEvolPara;
+	}
+
+	public void setSampleEvolPara(boolean sampleEvolPara) {
+		this.sampleEvolPara = sampleEvolPara;
 	}
 
 }

@@ -36,6 +36,14 @@ public class AnnealingKernelTreeEvolPara implements SMCSamplerKernel<UnrootedTre
 	private boolean initializing = true;
 	private int currentIter=0;
 	private EvolutionModel evolModel = EvolutionModel.K2P; 
+	public EvolutionModel getEvolModel() {
+		return evolModel;
+	}
+
+	public void setEvolModel(EvolutionModel evolModel) {
+		this.evolModel = evolModel;
+	}
+
 	private final Dataset dataset;
 	private final StandardNonClockPriorDensity treePriorDensity; 
 

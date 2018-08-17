@@ -16,7 +16,7 @@ public interface EvolutionParameters {
 //		private double[] statFreqs;         // stationary state frequencies. pi_A, pi_C, pi_G, pi_T
 //		private double alpha=0.5;           // shape parameter in the Gamma distribution
 //		private double pInv=0.2;            // the proportion of invariant sites 
-        private double[] para = new double[12];
+        private double[] para = new double[10];
         
         public GTR(double[] para)
         {
@@ -40,9 +40,9 @@ public interface EvolutionParameters {
 			// six parameters of substitutions:rAC,rAG,rAT,rCG,rGT,rCT
 			double[] statFreqs=Dirichlet.sample(rand, new double[]{10,10,10,10});  
 			// stationary state frequencies. pi_A, pi_C, pi_G, pi_T				
-			double alpha=Sampling.nextDouble(rand,0.1,0.9);       // shape parameter in the Gamma distribution
-			double pInv=0;        // the proportion of invariant sites
-			para = new double[] {subsRates[0],subsRates[1],subsRates[2],subsRates[3],subsRates[4],subsRates[5],statFreqs[0],statFreqs[1],statFreqs[2],statFreqs[3],alpha,pInv};
+		//	double alpha=Sampling.nextDouble(rand,0.1,0.9);       // shape parameter in the Gamma distribution
+		//	double pInv=0;        // the proportion of invariant sites
+			para = new double[] {subsRates[0],subsRates[1],subsRates[2],subsRates[3],subsRates[4],subsRates[5],statFreqs[0],statFreqs[1],statFreqs[2],statFreqs[3]};						
 		}
 	}
 	

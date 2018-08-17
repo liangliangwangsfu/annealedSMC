@@ -26,18 +26,29 @@ public interface EvolutionParameterProposalDistribution
 
 	public static class Options {
 		@Option 
-		public double a_alpha = 1.5; 		
+		public double a_kappa = 1.5;
+		@Option
+		public double a_statFreqs=300;     // tuning parameter for statFreqs;
+		@Option
+		private double a_subsRates=200;     // tuning parameter for subsRates;			
 		@Option
 		public boolean useK2PProposal = true;
-	}
+		@Option
+		public boolean useGTRProposal = false;		
 
+	}
 
 	public static class Util {
 		public static final EvolutionParameterProposalDistribution.Options _defaultProposalDistributionOptions = new EvolutionParameterProposalDistribution.Options();
 
 		public static List<EvolutionParameterProposalDistribution> proposalList(Options options, Random rand) {
 			List<EvolutionParameterProposalDistribution> result = new ArrayList<EvolutionParameterProposalDistribution>();
-			if (options.useK2PProposal) result.add(new K2PProposal(options.a_alpha));		
+			if (options.useK2PProposal) result.add(new K2PProposal(options.a_kappa));		
+			if(options.useGTRProposal)
+			{
+				result.add(new GTRProposalStatFreqs(options.a_statFreqs));
+				result.add(new GTRProposalSubsRates(options.a_subsRates));
+			}
 			Collections.shuffle(result, rand);
 			return result;
 		}
@@ -61,44 +72,88 @@ public interface EvolutionParameterProposalDistribution
 				return Pair.makePair(newTrans2tranv, Math.log(m));						
 			}
 		}
-
 		
-		
-		public static double[] proposeAlpha(Random rand, double alpha, double a_alpha, double low, double high){
-
-			double [] result=new double[2]; 
-			double scale=0,proposedAlpha=Double.MAX_VALUE; 		
-			while(proposedAlpha<low || proposedAlpha>high){
-				scale=Sampling.nextDouble(rand, 1.0/a_alpha, a_alpha);
-				proposedAlpha=scale*alpha;		
-			}		
-			result[0]=scale; 
-			result[1]=proposedAlpha;
-			return result; 
-		}
-
-		public static double proposePInv(Random rand, double pInv, double a_pInv, double low, double high){		
-			double proposedPInv=Double.MAX_VALUE; 		
-			while(proposedPInv<low || proposedPInv>high){
-				proposedPInv=Sampling.nextDouble(rand, Math.max(0, pInv-a_pInv), Math.min(1, pInv+a_pInv));
-			}				
-			return proposedPInv; 
-		}
-
-		public static double[] proposeFromDirichlet(Random rand, double a, double[] rates){		
-			double[] alphas = new double[rates.length];
-			for (int i = 0; i < rates.length; i++)alphas[i]=a*rates[i];
-			double[] result = Dirichlet.sample(rand, alphas); 
-			return result;
-		}
-
-		public static double logProposal(double scale, double[] rates){
-			double[] alphas = new double[rates.length];
-			for (int i = 0; i < rates.length; i++)alphas[i]=scale*rates[i];	      	        	    		
-			return Dirichlet.logProb(alphas, ListUtils.sum(alphas), rates);
-		}
+//		public static double[] proposeAlpha(Random rand, double alpha, double a_alpha, double low, double high){
+//
+//			double [] result=new double[2]; 
+//			double scale=0,proposedAlpha=Double.MAX_VALUE; 		
+//			while(proposedAlpha<low || proposedAlpha>high){
+//				scale=Sampling.nextDouble(rand, 1.0/a_alpha, a_alpha);
+//				proposedAlpha=scale*alpha;		
+//			}		
+//			result[0]=scale; 
+//			result[1]=proposedAlpha;
+//			return result; 
+//		}
+//
+//		public static double proposePInv(Random rand, double pInv, double a_pInv, double low, double high){		
+//			double proposedPInv=Double.MAX_VALUE; 		
+//			while(proposedPInv<low || proposedPInv>high){
+//				proposedPInv=Sampling.nextDouble(rand, Math.max(0, pInv-a_pInv), Math.min(1, pInv+a_pInv));
+//			}				
+//			return proposedPInv; 
+//		}
+	}
+	
+	public static double[] proposeFromDirichlet(Random rand, double a, double[] rates){		
+		double[] alphas = new double[rates.length];
+		for (int i = 0; i < rates.length; i++)alphas[i]=a*rates[i];
+		double[] result = Dirichlet.sample(rand, alphas); 
+		return result;
 	}
 
+	public static double logProposal(double scale, double[] rates){
+		double[] alphas = new double[rates.length];
+		for (int i = 0; i < rates.length; i++)alphas[i]=scale*rates[i];	      	        	    		
+		return Dirichlet.logProb(alphas, ListUtils.sum(alphas), rates);
+	}
+		
+	
+	public static class GTRProposalStatFreqs implements EvolutionParameterProposalDistribution {		
+		private final double a; 
+		public GTRProposalStatFreqs(double a)
+		{
+			this.a = a; 
+		}
+		@Override
+		public String description() {
+			return "GTRProposal";
+		}
+
+		@Override
+		public Pair<EvolutionParameters, Double> propose(EvolutionParameters current, Random rand) {
+            double[] para = current.getParameters();                        
+            double[] statFreqs = new double[]{para[6],para[7],para[8],para[9]};
+            double[] proposedStatFreqs = proposeFromDirichlet(rand, a, statFreqs);
+            double[] updatedpara = new double[]{para[0],para[1],para[2],para[3],para[4],para[5],proposedStatFreqs[0],proposedStatFreqs[1],proposedStatFreqs[2],proposedStatFreqs[3]};     		      		
+      		return Pair.makePair(new EvolutionParameters.GTR(updatedpara), logProposal(a, proposedStatFreqs)-logProposal(a, statFreqs));
+		}
+	}
+	
+	
+	public static class GTRProposalSubsRates implements EvolutionParameterProposalDistribution {		
+		private final double a; 
+		public GTRProposalSubsRates(double a)
+		{
+			this.a = a; 
+		}
+		@Override
+		public String description() {
+			return "GTRProposal";
+		}
+
+		@Override
+		public Pair<EvolutionParameters, Double> propose(EvolutionParameters current, Random rand) {
+            double[] para = current.getParameters();            
+            double[] subsRates = new double[]{para[0],para[1],para[2],para[3],para[4],para[5]};
+            double[]  proposedSubsRates = proposeFromDirichlet(rand, a, subsRates);
+            double[] updatedpara = new double[]{subsRates[0],subsRates[1],subsRates[2],subsRates[3],subsRates[4],subsRates[5],para[6],para[7],para[8],para[9]};     		      		
+      		return Pair.makePair(new EvolutionParameters.GTR(updatedpara), logProposal(a, proposedSubsRates)-logProposal(a, subsRates));
+		}
+	}
+	
+	
+	
 
 	public static class K2PProposal implements EvolutionParameterProposalDistribution {		
 		private final double a; 

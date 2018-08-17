@@ -37,14 +37,12 @@ import smcsampler.AnnealingKernel;
 import smcsampler.LinkedImportanceSampling;
 import smcsampler.MrBayes;
 import smcsampler.SMCSampler;
-import smcsampler.SMCSamplerExperiments;
 import smcsampler.SSreverse;
 import smcsampler.SteppingStone;
 import smcsampler.phyloMCMC2;
 import smcsampler.readCSV;
 import smcsampler.subSamplingKernel;
 import smcsampler.subSamplingSMCsampler;
-import smcsampler.SMCSampler.ResamplingStrategy;
 import conifer.trees.StandardNonClockPriorDensity;
 import ev.ex.PhyloSamplerMain;
 import ev.ex.TreeGenerators;
@@ -209,8 +207,8 @@ public class ModelComparisonExperiments implements Runnable
 									InferenceMethod m = methods.get(i);
 						
 									int nRun = 1;
-									if (m==InferenceMethod.ANNEALING && adaptiveTempDiff && runDSMCusingadaptiveTemp == true)
-										nRun = 2;
+//									if (m==InferenceMethod.ANNEALING && adaptiveTempDiff && runDSMCusingadaptiveTemp == true)
+//										nRun = 2;
 									int nIter = Integer.MIN_VALUE;
 									for (int l = 0; l < nRun; l++) {
 										double iterScale = iterScalings.get(i);
@@ -698,12 +696,11 @@ public class ModelComparisonExperiments implements Runnable
 				Gamma exponentialPrior = Gamma.exponential(10.0);
 				StandardNonClockPriorDensity priorDensity = new StandardNonClockPriorDensity(
 						exponentialPrior);
-				Dataset dataset = DatasetUtils.fromAlignment(instance.data, instance.sequenceType);		        
-
+				Dataset dataset = DatasetUtils.fromAlignment(instance.data, instance.sequenceType);		        				
+			//	EvolutionParameters evolPara = new EvolutionParameters.K2P(instance.csmc_trans2tranv);								
+				EvolutionParameters evolPara = new EvolutionParameters.GTR(new double[]{0.26, 0.18, 0.17, 0.15, 0.11, 0.13, 0.25, 0.25, 0.25, 0.25});
 				
-				EvolutionParameters evolPara = new EvolutionParameters.K2P(instance.csmc_trans2tranv); 
-				CTMC ctmc = evolModel.instantiateCTMC(evolPara, dataset.nSites());
-				
+				CTMC ctmc = evolModel.instantiateCTMC(evolPara, dataset.nSites());				
 				UnrootedTreeState ncts = UnrootedTreeState.initFastState(initTree, dataset, ctmc, priorDensity);			
 				if(dataset.observations().size()<=5)
 					instance.marginalLogLike=numericalIntegratedMarginalLikelihood(instance.mainRand, ncts, 10.0, instance.nNumericalIntegration);
@@ -719,9 +716,12 @@ public class ModelComparisonExperiments implements Runnable
 				LinkedList<ProposalDistribution> proposalDistributions = new LinkedList<ProposalDistribution>();
 				
 				EvolutionParameterProposalDistribution.Options evolProposalOptions = EvolutionParameterProposalDistribution.Util._defaultProposalDistributionOptions;
+				evolProposalOptions.useGTRProposal = true;
+				evolProposalOptions.useK2PProposal = false;
 				LinkedList<EvolutionParameterProposalDistribution> evolProposalDistributions = new LinkedList<EvolutionParameterProposalDistribution>();
 								
-				AnnealingKernelTreeEvolPara ppk = new AnnealingKernelTreeEvolPara(dataset, priorDensity, new UnrootedTreeEvolParameterState(ncts, evolPara), 1.0/instance.nAnnealing, proposalDistributions, proposalOptions, evolProposalDistributions, evolProposalOptions);				
+				AnnealingKernelTreeEvolPara ppk = new AnnealingKernelTreeEvolPara(dataset, priorDensity, new UnrootedTreeEvolParameterState(ncts, evolPara), 1.0/instance.nAnnealing, proposalDistributions, proposalOptions, evolProposalDistributions, evolProposalOptions);
+				ppk.setEvolModel(evolModel);
 				TreeDistancesProcessor tdp = new TreeDistancesProcessor();
 				pc.sample(ppk, tdp);
 				String methodname=instance.adaptiveTempDiff?"Adaptive":"Deterministic";				

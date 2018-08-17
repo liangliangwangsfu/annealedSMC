@@ -696,10 +696,12 @@ public class ModelComparisonExperiments implements Runnable
 				Gamma exponentialPrior = Gamma.exponential(10.0);
 				StandardNonClockPriorDensity priorDensity = new StandardNonClockPriorDensity(
 						exponentialPrior);
-				Dataset dataset = DatasetUtils.fromAlignment(instance.data, instance.sequenceType);		        				
-			//	EvolutionParameters evolPara = new EvolutionParameters.K2P(instance.csmc_trans2tranv);								
-				EvolutionParameters evolPara = new EvolutionParameters.GTR(new double[]{0.26, 0.18, 0.17, 0.15, 0.11, 0.13, 0.25, 0.25, 0.25, 0.25});
-				
+				Dataset dataset = DatasetUtils.fromAlignment(instance.data, instance.sequenceType);
+				EvolutionParameters evolPara = null;
+				if(evolModel==EvolutionModel.K2P)
+					evolPara = new EvolutionParameters.K2P(instance.csmc_trans2tranv);
+				else
+				evolPara = new EvolutionParameters.GTR(new double[]{0.26, 0.18, 0.17, 0.15, 0.11, 0.13, 0.25, 0.25, 0.25, 0.25});  // GTR model				
 				CTMC ctmc = evolModel.instantiateCTMC(evolPara, dataset.nSites());				
 				UnrootedTreeState ncts = UnrootedTreeState.initFastState(initTree, dataset, ctmc, priorDensity);			
 				if(dataset.observations().size()<=5)
@@ -716,10 +718,11 @@ public class ModelComparisonExperiments implements Runnable
 				LinkedList<ProposalDistribution> proposalDistributions = new LinkedList<ProposalDistribution>();
 				
 				EvolutionParameterProposalDistribution.Options evolProposalOptions = EvolutionParameterProposalDistribution.Util._defaultProposalDistributionOptions;
+				if(evolModel==EvolutionModel.GTR) {
 				evolProposalOptions.useGTRProposal = true;
 				evolProposalOptions.useK2PProposal = false;
-				LinkedList<EvolutionParameterProposalDistribution> evolProposalDistributions = new LinkedList<EvolutionParameterProposalDistribution>();
-								
+				}
+				LinkedList<EvolutionParameterProposalDistribution> evolProposalDistributions = new LinkedList<EvolutionParameterProposalDistribution>();								
 				AnnealingKernelTreeEvolPara ppk = new AnnealingKernelTreeEvolPara(dataset, priorDensity, new UnrootedTreeEvolParameterState(ncts, evolPara), 1.0/instance.nAnnealing, proposalDistributions, proposalOptions, evolProposalDistributions, evolProposalOptions);
 				ppk.setEvolModel(evolModel);
 				TreeDistancesProcessor tdp = new TreeDistancesProcessor();

@@ -98,7 +98,18 @@ public interface EvolutionParameterProposalDistribution
 	public static double[] proposeFromDirichlet(Random rand, double a, double[] rates){		
 		double[] alphas = new double[rates.length];
 		for (int i = 0; i < rates.length; i++)alphas[i]=a*rates[i];
-		double[] result = Dirichlet.sample(rand, alphas); 
+		boolean tryagain = true;
+		double[] result = new double[rates.length];
+		while(tryagain)
+		{
+		 result = Dirichlet.sample(rand, alphas);
+		 int goodProb= 0;
+		 for (int i = 0; i < result.length; i++) 
+				if(result[i]<0.001 || result[i]>1)  
+					continue;
+				else goodProb++;				
+		 if(goodProb==result.length) tryagain = false;
+		}		
 		return result;
 	}
 

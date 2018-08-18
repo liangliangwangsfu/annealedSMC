@@ -132,7 +132,7 @@ public class ModelComparisonExperiments implements Runnable
 	@Option
 	public double essRatioThreshold = 0.7;
 	@Option public int nNumericalIntegration = 1000;
-	
+
 	@Option public int nSitesPerIndex = 10;
 
 	@Option
@@ -205,10 +205,10 @@ public class ModelComparisonExperiments implements Runnable
 							{
 								for (int i = 0; i < methods.size(); i++) {
 									InferenceMethod m = methods.get(i);
-						
+
 									int nRun = 1;
-//									if (m==InferenceMethod.ANNEALING && adaptiveTempDiff && runDSMCusingadaptiveTemp == true)
-//										nRun = 2;
+									//									if (m==InferenceMethod.ANNEALING && adaptiveTempDiff && runDSMCusingadaptiveTemp == true)
+									//										nRun = 2;
 									int nIter = Integer.MIN_VALUE;
 									for (int l = 0; l < nRun; l++) {
 										double iterScale = iterScalings.get(i);
@@ -302,20 +302,11 @@ public class ModelComparisonExperiments implements Runnable
 								}
 							}
 							LogInfo.end_track();
-
-							//      ReportProgress.divisionCompleted();
-
 		}
-		//		String mrBayesFolder=Execution.getFile("temp-mrbayes");		
-		//	LogInfo.logs("grep Mean: "+mrBayesFolder+"/time=*/mrbayes-stdout |awk {'print $3'}");
-		//	String str =IO.call("bash -s", "grep Mean: "+mrBayesFolder+"/time=*/mrbayes-stdout |awk {'print $3'}");        
-		//	logZout.append(str);
-		//LogInfo.logs(str);
-
 		out.close();
 		logZout.close();
 	}
-	
+
 
 
 	public static double numericalIntegratedMarginalLikelihood(Random rand, UnrootedTreeState ncts, double rate, int K)
@@ -407,11 +398,11 @@ public class ModelComparisonExperiments implements Runnable
 						options);
 				TreeDistancesProcessor tdp = new TreeDistancesProcessor();
 				final double zHat = lpf.sample(tdp);
-				
+
 				String methodname = "CSMCNonClock";				
 				instance.logZout.println(CSV.body(treeName,methodname,zHat));
 				instance.logZout.flush();
-				
+
 				LogInfo.logsForce("Norm:" + zHat);
 				return tdp;
 			}
@@ -434,12 +425,12 @@ public class ModelComparisonExperiments implements Runnable
 				samplerMain.setnSamplesEachChain(PhyloSampler._defaultPhyloSamplerOptions.nIteration);
 				samplerMain.setLogZ(0.0);
 				samplerMain.run();			
-				
+
 				instance.logZout.println(CSV.body(treeName,"MCMC", "NA",
 						samplerMain.getLogZ()));
 				instance.logZout.flush();
-				
-				
+
+
 				if(instance.useLIS == true) {
 					LinkedImportanceSampling._defaultPhyloSamplerOptions.rand = mainRand;
 					LISMain.alignmentInputFile = instance.data;
@@ -455,7 +446,7 @@ public class ModelComparisonExperiments implements Runnable
 							LISMain.getNormalizer()));
 					instance.logZout.flush();	
 				}
-				
+
 				if(instance.useRevSS == true)  {
 					SSreverse._defaultPhyloSamplerOptions.rand = mainRand;
 					RevssMain.alignmentInputFile = instance.data;
@@ -470,7 +461,7 @@ public class ModelComparisonExperiments implements Runnable
 							RevssMain.getNormalizer()));
 					instance.logZout.flush();	
 				}
-				
+
 				if(instance.usenewSS == true){
 					SteppingStone._defaultPhyloSamplerOptions.rand = mainRand;
 					ssMain.alignmentInputFile = instance.data;
@@ -485,7 +476,52 @@ public class ModelComparisonExperiments implements Runnable
 							ssMain.getNormalizer()));
 					instance.logZout.flush();	
 				}
-									
+
+				return  samplerMain.tdp;
+			}
+		},	
+		MCMCEvolPara {
+			@Override
+			public TreeDistancesProcessor doIt(ModelComparisonExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
+			{
+				PhyloSampler._defaultPhyloSamplerOptions.rand = mainRand;
+				samplerMain.alignmentInputFile = instance.data;
+				samplerMain.st = instance.sequenceType;
+				int Ntemperature = 4;
+				double alpha = 1.0/3.0;
+				PhyloSampler._defaultPhyloSamplerOptions.nIteration = (int) (iterScale * instance.nThousandIters * 1000/(1.0*instance.mcmcfac));
+				//PhyloSampler._defaultPhyloSamplerOptions.nIteration = 10000;
+				//double[] temperatureSchedule = new double[]{1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0};	
+				samplerMain.setTemperatureSchedule(Ntemperature, alpha);
+				samplerMain.computeLogZUsingSteppingStone = false;
+				samplerMain.setnSamplesEachChain(PhyloSampler._defaultPhyloSamplerOptions.nIteration);
+				samplerMain.setLogZ(0.0);
+				samplerMain.run();			
+				instance.logZout.println(CSV.body(treeName,"MCMC", "NA",
+						samplerMain.getLogZ()));
+				instance.logZout.flush();
+
+				if(instance.usenewSS == true){
+					SteppingStoneEvolPara ssMain = new SteppingStoneEvolPara();		
+					ssMain.evolModel = instance.evolModel;
+					Dataset dataset = DatasetUtils.fromAlignment(instance.data, instance.sequenceType);
+					ssMain.dataset = dataset;
+					ssMain.rand = mainRand;
+
+					SteppingStone._defaultPhyloSamplerOptions.rand = mainRand;
+					ssMain.alignmentInputFile = instance.data;
+					ssMain.st = instance.sequenceType;
+					ssMain.nSamplesEachChain = ((int) (iterScale * instance.nThousandIters * 1000/(1.0*instance.ntempSS)));
+					ssMain.setnSamplesEachChain(ssMain.nSamplesEachChain);
+					ssMain.nChains = instance.ntempSS;
+					ssMain.alpha = 1.0/3.0;
+					ssMain.csmc_trans2tranv = instance.csmc_trans2tranv;
+					ssMain.run();	
+					instance.logZout.println(CSV.body(treeName,"SS", "NA",
+							ssMain.getNormalizer()));
+					instance.logZout.flush();	
+				}
+
 				return  samplerMain.tdp;
 			}
 		},	
@@ -503,7 +539,7 @@ public class ModelComparisonExperiments implements Runnable
 				samplerMain2.initTree =  UnrootedTree.fromRooted(RootedTree.Util.fromNewickString(IO.f2s(new File(newname))));
 				PhyloSampler._defaultPhyloSamplerOptions.nIteration = (int) (iterScale * instance.nThousandIters * 1000/(1.0*instance.mcmcfac));
 				samplerMain2.run();			
-				
+
 				return  samplerMain2.tdp;
 			}
 		},
@@ -521,10 +557,10 @@ public class ModelComparisonExperiments implements Runnable
 				String outName="startTree.newick";
 				writeToDisk(new File(instance.output, outName), initTree.toNewick());
 				String cmdStr="cat " +outName + "  | sed 's/internal_[0-9]*//g' > " + "start-tree.newick";                    
-//				LogInfo.logs(cmdStr);
-                IO.call("bash -s",cmdStr,instance.output);          
-//				mb.setStartTree(IO.f2s(new File(instance.output,"start-tree.newick")));
-				
+				//				LogInfo.logs(cmdStr);
+				IO.call("bash -s",cmdStr,instance.output);          
+				//				mb.setStartTree(IO.f2s(new File(instance.output,"start-tree.newick")));
+
 				if(leaves.size()<4) mb.useNNI=false;
 				if(mb.fixGTRGammaPara)
 				{
@@ -575,8 +611,8 @@ public class ModelComparisonExperiments implements Runnable
 				pc.adaptiveType = instance.adaptiveType;
 				pc.setUseCESS(instance.useCESS);
 				if(pc.adaptiveTempDiff == false && instance.usenewDSMC == false) {
-					 String str =instance.output+"/"+"essTempDiffAdaptive00.csv";
-					 pc.setDeterministicTemperatureDifference(readCSV.DeterministicTem(str));
+					String str =instance.output+"/"+"essTempDiffAdaptive00.csv";
+					pc.setDeterministicTemperatureDifference(readCSV.DeterministicTem(str));
 				}
 				if(instance.usenewDSMC == true) {
 					int T = instance.nAnnealing;
@@ -594,7 +630,7 @@ public class ModelComparisonExperiments implements Runnable
 							+ ".csv";
 					filename2 ="essTempDiffAdaptive00.csv";
 				}
-					
+
 				pc.smcSamplerOut = IOUtils.openOutEasy(new File(
 						instance.output, filename));
 				pc.smcSamplerOut2 = IOUtils.openOutEasy(new File(
@@ -667,8 +703,8 @@ public class ModelComparisonExperiments implements Runnable
 				pc.adaptiveType = instance.adaptiveType;
 				pc.setUseCESS(instance.useCESS);
 				if(pc.adaptiveTempDiff == false && instance.usenewDSMC == false) {
-					 String str =instance.output+"/"+"essTempDiffAdaptive00.csv";
-					 pc.setDeterministicTemperatureDifference(readCSV.DeterministicTem(str));
+					String str =instance.output+"/"+"essTempDiffAdaptive00.csv";
+					pc.setDeterministicTemperatureDifference(readCSV.DeterministicTem(str));
 				}
 				if(instance.usenewDSMC == true) {
 					int T = instance.nAnnealing;
@@ -686,7 +722,7 @@ public class ModelComparisonExperiments implements Runnable
 							+ ".csv";
 					filename2 ="essTempDiffAdaptive00.csv";
 				}
-					
+
 				pc.smcSamplerOut = IOUtils.openOutEasy(new File(
 						instance.output, filename));
 				pc.smcSamplerOut2 = IOUtils.openOutEasy(new File(
@@ -701,8 +737,9 @@ public class ModelComparisonExperiments implements Runnable
 				if(evolModel==EvolutionModel.K2P)
 					evolPara = new EvolutionParameters.K2P(instance.csmc_trans2tranv);
 				else
-				evolPara = new EvolutionParameters.GTR(new double[]{0.26, 0.18, 0.17, 0.15, 0.11, 0.13, 0.25, 0.25, 0.25, 0.25});  // GTR model				
-				CTMC ctmc = evolModel.instantiateCTMC(evolPara, dataset.nSites());				
+					evolPara = new EvolutionParameters.GTR(new double[]{0.26, 0.18, 0.17, 0.15, 0.11, 0.13, 0.25, 0.25, 0.25, 0.25});  // GTR model				
+				CTMC ctmc = evolModel.instantiateCTMC(evolPara, dataset.nSites());
+
 				UnrootedTreeState ncts = UnrootedTreeState.initFastState(initTree, dataset, ctmc, priorDensity);			
 				if(dataset.observations().size()<=5)
 					instance.marginalLogLike=numericalIntegratedMarginalLikelihood(instance.mainRand, ncts, 10.0, instance.nNumericalIntegration);
@@ -716,11 +753,11 @@ public class ModelComparisonExperiments implements Runnable
 				else
 					proposalOptions.useStochasticNearestNeighborInterchangeProposal=true;		
 				LinkedList<ProposalDistribution> proposalDistributions = new LinkedList<ProposalDistribution>();
-				
+
 				EvolutionParameterProposalDistribution.Options evolProposalOptions = EvolutionParameterProposalDistribution.Util._defaultProposalDistributionOptions;
 				if(evolModel==EvolutionModel.GTR) {
-				evolProposalOptions.useGTRProposal = true;
-				evolProposalOptions.useK2PProposal = false;
+					evolProposalOptions.useGTRProposal = true;
+					evolProposalOptions.useK2PProposal = false;
 				}
 				LinkedList<EvolutionParameterProposalDistribution> evolProposalDistributions = new LinkedList<EvolutionParameterProposalDistribution>();								
 				AnnealingKernelTreeEvolPara ppk = new AnnealingKernelTreeEvolPara(dataset, priorDensity, new UnrootedTreeEvolParameterState(ncts, evolPara), 1.0/instance.nAnnealing, proposalDistributions, proposalOptions, evolProposalDistributions, evolProposalOptions);
@@ -769,44 +806,44 @@ public class ModelComparisonExperiments implements Runnable
 				pc.essRatioThreshold = instance.essRatioThreshold;
 				//pc.adaptiveType = instance.adaptiveType;
 				pc.setUseCESS(instance.useCESS);
-//				if(pc.adaptiveTempDiff == false && instance.usenewDSMC == false) {
-//					 String str =instance.output+"/"+"essTempDiffAdaptive00.csv";
-//					 pc.setDeterministicTemperatureDifference(readCSV.DeterministicTem(str));
-//				}
-//				if(instance.usenewDSMC == true) {
+				//				if(pc.adaptiveTempDiff == false && instance.usenewDSMC == false) {
+				//					 String str =instance.output+"/"+"essTempDiffAdaptive00.csv";
+				//					 pc.setDeterministicTemperatureDifference(readCSV.DeterministicTem(str));
+				//				}
+				//				if(instance.usenewDSMC == true) {
 
-				
+
 				//}
-//				String filename ="essTempDiffDeterministic.csv";
-//				String filename2 ="essTempDiffDeterministic00.csv";
-//				if (instance.adaptiveTempDiff) {
-//					filename = "essTempDiffAdaptive" + instance.adaptiveType
-//							+ ".csv";
-//					filename2 ="essTempDiffAdaptive00.csv";
-//				}
-					
-//				pc.smcSamplerOut = IOUtils.openOutEasy(new File(
-//						instance.output, filename));
-//				pc.smcSamplerOut2 = IOUtils.openOutEasy(new File(
-//						instance.output, filename2));
+				//				String filename ="essTempDiffDeterministic.csv";
+				//				String filename2 ="essTempDiffDeterministic00.csv";
+				//				if (instance.adaptiveTempDiff) {
+				//					filename = "essTempDiffAdaptive" + instance.adaptiveType
+				//							+ ".csv";
+				//					filename2 ="essTempDiffAdaptive00.csv";
+				//				}
+
+				//				pc.smcSamplerOut = IOUtils.openOutEasy(new File(
+				//						instance.output, filename));
+				//				pc.smcSamplerOut2 = IOUtils.openOutEasy(new File(
+				//						instance.output, filename2));
 				int T = instance.nSubsampling;
 				List<Double> originalTemp = new ArrayList<Double>();
 				if(instance.adaptiveTempDiff == true) {
-				   //String str =instance.output+"/"+"essTempDiffAdaptive00.csv";
-				   String str ="/Users/oudomame/Desktop/essTempDiffAdaptive3.csv";
-				   List<Double> temperatureDifferenceFromAnnealing = readCSV.DeterministicTem(str);
-				   T = temperatureDifferenceFromAnnealing.size()-1;			   
-				   originalTemp.add(temperatureDifferenceFromAnnealing.get(1));
+					//String str =instance.output+"/"+"essTempDiffAdaptive00.csv";
+					String str ="/Users/oudomame/Desktop/essTempDiffAdaptive3.csv";
+					List<Double> temperatureDifferenceFromAnnealing = readCSV.DeterministicTem(str);
+					T = temperatureDifferenceFromAnnealing.size()-1;			   
+					originalTemp.add(temperatureDifferenceFromAnnealing.get(1));
 					for(int t = 1; t < T; t++) {
 						originalTemp.add(originalTemp.get(t-1) + temperatureDifferenceFromAnnealing.get(t+1));
 					}		   
-			    }else {
+				}else {
 					for(int t = 0; t < T; t++) {
 						originalTemp.add(Math.pow((1.0*t+1)/(T*1.0), 3));
 					}		    	
-			    }
-				
-				
+				}
+
+
 				List<Taxon> leaves = MSAParser.parseMSA(instance.data).taxa();
 				UnrootedTree initTree = initTree(new Random(3), leaves);
 				Gamma exponentialPrior = Gamma.exponential(10.0);
@@ -821,11 +858,11 @@ public class ModelComparisonExperiments implements Runnable
 				}else {
 					nFakeSites = nSites/nSitesPerIndex + 1;
 				}
-				
+
 				CTMC ctmc = CTMC.SimpleCTMC.dnaCTMC(dataset.nSites(),instance.csmc_trans2tranv);
 				UnrootedTreeState ncts = UnrootedTreeState.initFastState(initTree, dataset, ctmc, priorDensity);			
-//				if(dataset.observations().size()<=5)
-//					instance.marginalLogLike=numericalIntegratedMarginalLikelihood(instance.mainRand, ncts, 10.0, instance.nNumericalIntegration);
+				//				if(dataset.observations().size()<=5)
+				//					instance.marginalLogLike=numericalIntegratedMarginalLikelihood(instance.mainRand, ncts, 10.0, instance.nNumericalIntegration);
 
 				LogInfo.track("log prior and loglikelihood of the initial tree: ");
 				LogInfo.logsForce(ncts.getLogPrior()+" "+ncts.getLogLikelihood());

@@ -489,7 +489,8 @@ public class ModelComparisonExperiments implements Runnable
 				samplerMain.st = instance.sequenceType;
 				int Ntemperature = 4;
 				double alpha = 1.0/3.0;
-				PhyloSampler._defaultPhyloSamplerOptions.nIteration = (int) (iterScale * instance.nThousandIters * 1000/(1.0*instance.mcmcfac));
+				//TODO: add the evolutionary parameter estimate in the MCMC.  
+				PhyloSampler._defaultPhyloSamplerOptions.nIteration = 1000; // (int) (iterScale * instance.nThousandIters * 1000/(1.0*instance.mcmcfac));
 				//PhyloSampler._defaultPhyloSamplerOptions.nIteration = 10000;
 				//double[] temperatureSchedule = new double[]{1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0};	
 				samplerMain.setTemperatureSchedule(Ntemperature, alpha);

@@ -26,7 +26,7 @@ public interface EvolutionParameterProposalDistribution
 
 	public static class Options {
 		@Option 
-		public double a_kappa = 1.5;
+		public double a_kappa = 1.2;
 		@Option
 		public double a_statFreqs=300;     // tuning parameter for statFreqs;
 		@Option

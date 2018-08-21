@@ -25,6 +25,13 @@ public enum EvolutionModel {
 			double csmc_trans2tranv = para[0];						
 			return CTMC.SimpleCTMC.dnaCTMC(nSites,csmc_trans2tranv);
 		}							
+	},
+	JC{
+
+		@Override
+		public CTMC instantiateCTMC(EvolutionParameters evolPara, int nSites) {					
+			return CTMC.SimpleCTMC.dnaCTMC(nSites,1.0);
+		}							
 	};
 
 	public abstract CTMC instantiateCTMC(EvolutionParameters evolPara, int nSites);

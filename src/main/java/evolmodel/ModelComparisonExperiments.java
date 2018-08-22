@@ -174,12 +174,15 @@ public class ModelComparisonExperiments implements Runnable
 			files = IO.ls(new File(Execution.getFile(dataDirName)), "msf");
 		//    ReportProgress.progressBlock(files.size());
 
+		PrintWriter gtrGammaParameters = IOUtils.openOutEasy(new File(Execution.getFile("results"),
+				"gtrGammaParameters.csv"));
+		gtrGammaParameters.println(CSV.header("treeName", "pi_1", "pi_2", "pi_3", "pi_4", "r_1", "r_2", "r_3", "r_4", "r_5", "r_6", "alpha"));			
 		int nMCMCIter=0;		
 		for (File f : files)
 		{
 			this.data = f;
 			final String treeName = f.getName();
-			LogInfo.track("Current tree:" + treeName);
+			LogInfo.track("Current tree:" + treeName);						
 			// evaluate the likelihood of the inferred tree
 			Dataset dataset = DatasetUtils.fromAlignment(this.data, sequenceType);
 			UnrootedTree goldut = 
@@ -190,6 +193,14 @@ public class ModelComparisonExperiments implements Runnable
 							for (int j = 0; j < repPerDataPt; j++)
 							{
 								CTMC ctmc = null;
+								String treeNameCurrentRep= treeName;
+								treeNameCurrentRep = treeNameCurrentRep + ".Rep"+ j;
+								LogInfo.track("Repeat " + (j+1) + "/" + repPerDataPt);
+								LogInfo.end_track();
+								gtrGammaParameters.println(CSV.body(treeNameCurrentRep,generator.stationaryDistribution[0],generator.stationaryDistribution[1], generator.stationaryDistribution[3], generator.stationaryDistribution[3],
+										generator.subsRates[0],generator.subsRates[1],generator.subsRates[2],generator.subsRates[3],generator.subsRates[4],generator.subsRates[5],generator.alpha));
+								gtrGammaParameters.flush();
+
 								for (int i = 0; i < methods.size(); i++) {
 									InferenceMethod m = methods.get(i);
 									EvolutionParameters evolPara = null;
@@ -209,9 +220,7 @@ public class ModelComparisonExperiments implements Runnable
 									if((m == InferenceMethod.MCMC || m == InferenceMethod.MCMCEvolK2P || m == InferenceMethod.MCMCEvolGTR)&& nMCMCIter>0) iterScale=nMCMCIter;
 									LogInfo.track("Current method:" + m + " with iterScale=" + iterScale + " (i.e. " + (iterScale * nThousandIters * 1000.0) + " iterations)");
 									DescriptiveStatisticsMap<String> stats = new DescriptiveStatisticsMap<String>();
-									String treeNameCurrentRep= treeName;
-									treeNameCurrentRep = treeNameCurrentRep + ".Rep"+ j;
-									LogInfo.track("Repeat " + (j+1) + "/" + repPerDataPt);
+
 									long  time=System.currentTimeMillis();
 									TreeDistancesProcessor processor = m.doIt(this, iterScale, goldut, treeNameCurrentRep);									
 									time=System.currentTimeMillis()-time;
@@ -266,7 +275,7 @@ public class ModelComparisonExperiments implements Runnable
 										//			treeName, time));
 									}
 
-									LogInfo.end_track();
+								//	LogInfo.end_track();
 									//          ReportProgress.divisionCompleted();
 
 									LogInfo.track("Score for current block of repeats (Method="+m + ",IterScale=" + iterScale + ",TreeName=" + treeName + ")");
@@ -283,6 +292,7 @@ public class ModelComparisonExperiments implements Runnable
 		}
 		out.close();
 		logZout.close();
+		gtrGammaParameters.close();
 	}
 
 
@@ -708,15 +718,9 @@ public class ModelComparisonExperiments implements Runnable
 		{
 			LogInfo.logsForce("Generating data...");
 			LogInfo.forceSilent = false;
-			PrintWriter gtrGammaParameters = IOUtils.openOutEasy(new File(Execution.getFile("results"),
-					"gtrGammaParameters.csv"));
-			gtrGammaParameters.println(CSV.header("pi_1", "pi_2", "pi_3", "pi_4", "r_1", "r_2", "r_3", "r_4", "r_5", "r_6", "alpha"));			
 			generator.stationaryDistribution = Dirichlet.sample(generator.rand, new double[] {100,100,100,100}); 
 			generator.subsRates = Dirichlet.sample(generator.rand, new double[] {100,100,100,100,100,100}); 
 			generator.alpha = GammaDistribution.nextGamma(2,3);
-			gtrGammaParameters.println(CSV.body(generator.stationaryDistribution[0],generator.stationaryDistribution[1], generator.stationaryDistribution[3], generator.stationaryDistribution[3],
-					generator.subsRates[0],generator.subsRates[1],generator.subsRates[2],generator.subsRates[3],generator.subsRates[4],generator.subsRates[5],generator.alpha));
-			gtrGammaParameters.flush();
 			generator.run();
 		}else{
 
@@ -727,7 +731,6 @@ public class ModelComparisonExperiments implements Runnable
 			String str =IO.call("/bin/cp " +  dataFile +" "+ dataDir+"/"+dataFile.getName());        
 			LogInfo.logs(str);
 		}
-
 		//  LogInfo.forceSilent = false;
 		treeComparison();
 

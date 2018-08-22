@@ -39,6 +39,7 @@ import smcsampler.phyloMCMC2;
 import smcsampler.readCSV;
 import smcsampler.subSamplingSMCsampler;
 import conifer.trees.StandardNonClockPriorDensity;
+import dr.math.distributions.GammaDistribution;
 import ev.ex.PhyloSamplerMain;
 import ev.ex.TreeGenerators;
 import ev.poi.processors.TreeDistancesProcessor;
@@ -47,6 +48,7 @@ import fig.basic.IOUtils;
 import fig.basic.LogInfo;
 import fig.basic.Option;
 import fig.exec.Execution;
+import fig.prob.Dirichlet;
 import fig.prob.Gamma;
 import goblin.Taxon;
 
@@ -699,10 +701,22 @@ public class ModelComparisonExperiments implements Runnable
 		if (methods.size() != iterScalings.size())
 			throw new RuntimeException("Number of methods and scaling iters should match");
 
+		output = new File(Execution.getFile("results"));
+		output.mkdir();
+
 		if(useDataGenerator)
 		{
 			LogInfo.logsForce("Generating data...");
 			LogInfo.forceSilent = false;
+			PrintWriter gtrGammaParameters = IOUtils.openOutEasy(new File(Execution.getFile("results"),
+					"gtrGammaParameters.csv"));
+			gtrGammaParameters.println(CSV.header("pi_1", "pi_2", "pi_3", "pi_4", "r_1", "r_2", "r_3", "r_4", "r_5", "r_6", "alpha"));			
+			generator.stationaryDistribution = Dirichlet.sample(generator.rand, new double[] {100,100,100,100}); 
+			generator.subsRates = Dirichlet.sample(generator.rand, new double[] {100,100,100,100,100,100}); 
+			generator.alpha = GammaDistribution.nextGamma(2,3);
+			gtrGammaParameters.println(CSV.body(generator.stationaryDistribution[0],generator.stationaryDistribution[1], generator.stationaryDistribution[3], generator.stationaryDistribution[3],
+					generator.subsRates[0],generator.subsRates[1],generator.subsRates[2],generator.subsRates[3],generator.subsRates[4],generator.subsRates[5],generator.alpha));
+			gtrGammaParameters.flush();
 			generator.run();
 		}else{
 
@@ -715,8 +729,6 @@ public class ModelComparisonExperiments implements Runnable
 		}
 
 		//  LogInfo.forceSilent = false;
-		output = new File(Execution.getFile("results"));
-		output.mkdir();
 		treeComparison();
 
 	}

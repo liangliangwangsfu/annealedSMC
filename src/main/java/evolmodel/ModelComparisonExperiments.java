@@ -62,9 +62,9 @@ public class ModelComparisonExperiments implements Runnable
 	@Option public boolean useRef = false;
 	@Option public int ntempSS = 10;
 	@Option public int mcmcfac = 1;
-	@Option public InferenceMethod refMethod = InferenceMethod.MCMC;  
+	@Option public InferenceMethod refMethod = InferenceMethod.SSJC;  
 	@Option public double nThousandIters = 10;
-	@Option public ArrayList<InferenceMethod> methods = list(Arrays.asList(InferenceMethod.ANNEALING,InferenceMethod.MCMC));
+	@Option public ArrayList<InferenceMethod> methods = list(Arrays.asList(InferenceMethod.ANNEALINGJC,InferenceMethod.SSJC));
 	@Option public ArrayList<Double> iterScalings = list(Arrays.asList(1.0));
 	@Option public int refIterScaling = 100;
 	@Option public int repPerDataPt = 1;    
@@ -161,7 +161,7 @@ public class ModelComparisonExperiments implements Runnable
 		//    data = new File( generator.output, "sim-0.msf");
 		logZout = IOUtils.openOutEasy(new File(Execution.getFile("results"),
 				"logZout.csv"));
-		logZout.println(CSV.header("treeName", "Method", "Model", "logZ"));
+		logZout.println(CSV.header("treeName", "Method",  "logZ"));
 		PrintWriter out = IOUtils.openOutEasy( new File(output, "results.csv"));
 		out.println(CSV.header("Method", "Adaptive", "AdaptiveType", "T",
 				"IterScale",
@@ -205,11 +205,11 @@ public class ModelComparisonExperiments implements Runnable
 									InferenceMethod m = methods.get(i);
 									EvolutionParameters evolPara = null;
 									EvolutionModel evolModel = EvolutionModel.JC;																			
-									if(m == InferenceMethod.MCMCEvolK2P || m == InferenceMethod.ANNEALINGEvolK2P) {
+									if(m == InferenceMethod.SSEvolK2P || m == InferenceMethod.ANNEALINGEvolK2P) {
 										evolModel = EvolutionModel.K2P;
 										evolPara = new EvolutionParameters.K2P(csmc_trans2tranv); 	
 									}
-									if(m == InferenceMethod.MCMCEvolGTR || m == InferenceMethod.ANNEALINGEvolGTR)
+									if(m == InferenceMethod.SSEvolGTR || m == InferenceMethod.ANNEALINGEvolGTR)
 									{
 										evolModel = EvolutionModel.GTR;
 										evolPara = new EvolutionParameters.GTR(new double[]{0.26, 0.18, 0.17, 0.15, 0.11, 0.13, 0.25, 0.25, 0.25, 0.25});  // GTR model																								
@@ -217,7 +217,7 @@ public class ModelComparisonExperiments implements Runnable
 									ctmc = evolModel.instantiateCTMC(evolPara, dataset.nSites());
 
 									double iterScale = iterScalings.get(i);
-									if((m == InferenceMethod.MCMC || m == InferenceMethod.MCMCEvolK2P || m == InferenceMethod.MCMCEvolGTR)&& nMCMCIter>0) iterScale=nMCMCIter;
+									if((m == InferenceMethod.SSJC || m == InferenceMethod.SSEvolK2P || m == InferenceMethod.SSEvolGTR)&& nMCMCIter>0) iterScale=nMCMCIter;
 									LogInfo.track("Current method:" + m + " with iterScale=" + iterScale + " (i.e. " + (iterScale * nThousandIters * 1000.0) + " iterations)");
 									DescriptiveStatisticsMap<String> stats = new DescriptiveStatisticsMap<String>();
 
@@ -227,13 +227,13 @@ public class ModelComparisonExperiments implements Runnable
 									LogInfo.forceSilent = false;
 									UnrootedTree inferred = processor.getConsensus();		
 									System.out.println(inferred);
-									if(m==InferenceMethod.ANNEALING) {
+									if(m==InferenceMethod.ANNEALINGJC) {
 										IO.writeToDisk(new File(output, "consensus_annealing.newick"), inferred.toNewick());
 									}
 									IO.writeToDisk(new File(output, "consensus_"+treeName.replaceAll("[.]msf$",".newick")), inferred.toNewick());
 									{
 										UnrootedTreeState ncs = UnrootedTreeState.initFastState(inferred, dataset, ctmc);
-										if (m == InferenceMethod.ANNEALING || m == InferenceMethod.ANNEALINGEvolK2P  || m == InferenceMethod.ANNEALINGEvolGTR)
+										if (m == InferenceMethod.ANNEALINGJC || m == InferenceMethod.ANNEALINGEvolK2P  || m == InferenceMethod.ANNEALINGEvolGTR)
 											out.println(CSV.body(m, adaptiveTempDiff, adaptiveType,
 													this.nAnnealing, iterScale, j,
 													"ConsensusLogLL", ncs.logLikelihood(),
@@ -246,7 +246,7 @@ public class ModelComparisonExperiments implements Runnable
 									{
 										// best log likelihood, when available
 										double bestLogLL = processor.getBestLogLikelihood();
-										if (m == InferenceMethod.ANNEALING  || m == InferenceMethod.ANNEALINGEvolK2P  || m == InferenceMethod.ANNEALINGEvolGTR)
+										if (m == InferenceMethod.ANNEALINGJC  || m == InferenceMethod.ANNEALINGEvolK2P  || m == InferenceMethod.ANNEALINGEvolGTR)
 											out.println(CSV.body(m, adaptiveTempDiff, adaptiveType,
 													this.nAnnealing, iterScale, j,
 													"BestSampledLogLL", bestLogLL, treeName, time));
@@ -266,7 +266,7 @@ public class ModelComparisonExperiments implements Runnable
 									{
 										final double value = tm.score(inferred, goldut);
 										stats.addValue(tm.toString(), value);
-										if (m == InferenceMethod.ANNEALING  ||  m == InferenceMethod.ANNEALINGEvolK2P  || m == InferenceMethod.ANNEALINGEvolGTR)
+										if (m == InferenceMethod.ANNEALINGJC  ||  m == InferenceMethod.ANNEALINGEvolK2P  || m == InferenceMethod.ANNEALINGEvolGTR)
 											out.println(CSV.body(m, adaptiveTempDiff, adaptiveType,
 													this.nAnnealing, iterScale, j, tm, value,
 													treeName, time));
@@ -316,7 +316,7 @@ public class ModelComparisonExperiments implements Runnable
 
 	public static enum InferenceMethod
 	{
-		MCMC {
+		SSJC {
 			@Override
 			public TreeDistancesProcessor doIt(ModelComparisonExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
 			{
@@ -344,14 +344,14 @@ public class ModelComparisonExperiments implements Runnable
 					ssMain.alpha = 1.0/3.0;
 					ssMain.csmc_trans2tranv = 1.0;//instance.csmc_trans2tranv;
 					ssMain.run();	
-					instance.logZout.println(CSV.body(treeName,"SS", "JC", ssMain.getNormalizer()));
+					instance.logZout.println(CSV.body(treeName,"SSJC", ssMain.getNormalizer()));
 					instance.logZout.flush();	
 				}
 
 				return  samplerMain.tdp;
 			}
 		},	
-		MCMCEvolK2P {
+		SSEvolK2P {
 			@Override
 			public TreeDistancesProcessor doIt(ModelComparisonExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
 			{
@@ -384,14 +384,14 @@ public class ModelComparisonExperiments implements Runnable
 					ssMain.alpha = 1.0/3.0;
 					ssMain.csmc_trans2tranv = instance.csmc_trans2tranv;
 					ssMain.run();	
-					instance.logZout.println(CSV.body(treeName,"SSEvolPara", "K2P", ssMain.getNormalizer()));
+					instance.logZout.println(CSV.body(treeName,"SSEvolK2P", ssMain.getNormalizer()));
 					instance.logZout.flush();	
 				}
 
 				return  samplerMain.tdp;
 			}
 		},
-		MCMCEvolGTR {
+		SSEvolGTR {
 			@Override
 			public TreeDistancesProcessor doIt(ModelComparisonExperiments instance, double iterScale, UnrootedTree goldut, String treeName)
 			{
@@ -423,14 +423,14 @@ public class ModelComparisonExperiments implements Runnable
 					ssMain.alpha = 1.0/3.0;
 					ssMain.csmc_trans2tranv = instance.csmc_trans2tranv;
 					ssMain.run();	
-					instance.logZout.println(CSV.body(treeName,"SSEvolPara", "GTR", ssMain.getNormalizer()));
+					instance.logZout.println(CSV.body(treeName,"SSEvolGTR", ssMain.getNormalizer()));
 					instance.logZout.flush();	
 				}
 
 				return  samplerMain.tdp;
 			}
 		},	
-		ANNEALING {
+		ANNEALINGJC {
 
 			@Override
 			public TreeDistancesProcessor doIt(ModelComparisonExperiments instance,
@@ -499,7 +499,7 @@ public class ModelComparisonExperiments implements Runnable
 				TreeDistancesProcessor tdp = new TreeDistancesProcessor();
 				pc.sample(ppk, tdp);
 				//String methodname=instance.adaptiveTempDiff?"Adaptive":"Deterministic";				
-				instance.logZout.println(CSV.body(treeName,"ANNEALING","JC", pc.estimateNormalizer()));
+				instance.logZout.println(CSV.body(treeName,"ANNEALINGJC", pc.estimateNormalizer()));
 				instance.logZout.flush();
 				LogInfo.track("Estimation of log(Z) ");
 				LogInfo.logsForce("Estimate of log(Z): "
@@ -584,7 +584,7 @@ public class ModelComparisonExperiments implements Runnable
 				TreeDistancesProcessor tdp = new TreeDistancesProcessor();
 				pc.sample(ppk, tdp);
 				//				String methodname=instance.adaptiveTempDiff?"Adaptive":"Deterministic";				
-				instance.logZout.println(CSV.body(treeName,"ANNEALINGEvolPara","K2P", pc.estimateNormalizer()));
+				instance.logZout.println(CSV.body(treeName,"ANNEALINGEvolK2P", pc.estimateNormalizer()));
 				instance.logZout.flush();
 				LogInfo.track("Estimation of log(Z) ");
 				LogInfo.logsForce("Estimate of log(Z): "
@@ -669,7 +669,7 @@ public class ModelComparisonExperiments implements Runnable
 				TreeDistancesProcessor tdp = new TreeDistancesProcessor();
 				pc.sample(ppk, tdp);
 				//				String methodname=instance.adaptiveTempDiff?"Adaptive":"Deterministic";				
-				instance.logZout.println(CSV.body(treeName,"ANNEALINGEvolPara","GTR", pc.estimateNormalizer()));
+				instance.logZout.println(CSV.body(treeName,"ANNEALINGEvolGTR", pc.estimateNormalizer()));
 				instance.logZout.flush();
 				LogInfo.track("Estimation of log(Z) ");
 				LogInfo.logsForce("Estimate of log(Z): "

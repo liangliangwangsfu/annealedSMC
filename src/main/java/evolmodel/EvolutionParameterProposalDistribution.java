@@ -26,7 +26,7 @@ public interface EvolutionParameterProposalDistribution
 
 	public static class Options {
 		@Option 
-		public double a_kappa = 1.2;
+		public double a_kappa = 1.05;
 		@Option
 		public double a_statFreqs=300;     // tuning parameter for statFreqs;
 		@Option
@@ -158,7 +158,7 @@ public interface EvolutionParameterProposalDistribution
             double[] para = current.getParameters();            
             double[] subsRates = new double[]{para[0],para[1],para[2],para[3],para[4],para[5]};
             double[]  proposedSubsRates = proposeFromDirichlet(rand, a, subsRates);
-            double[] updatedpara = new double[]{subsRates[0],subsRates[1],subsRates[2],subsRates[3],subsRates[4],subsRates[5],para[6],para[7],para[8],para[9]};     		      		
+            double[] updatedpara = new double[]{proposedSubsRates[0],proposedSubsRates[1],proposedSubsRates[2],proposedSubsRates[3],proposedSubsRates[4],proposedSubsRates[5],para[6],para[7],para[8],para[9]};     		      		
       		return Pair.makePair(new EvolutionParameters.GTR(updatedpara), logProposal(a, proposedSubsRates)-logProposal(a, subsRates));
 		}
 	}

@@ -123,8 +123,7 @@ public class AnnealingKernel implements SMCSamplerKernel<UnrootedTreeState>
 	}
 
 	public double logTargetDensity(double temperature, UnrootedTreeState uts)
-	{
-		//return uts.getLogPrior()+ newtemperature*uts.getLogLikelihood();	
+	{	
 		return uts.getLogPrior()+ temperature*uts.getLogLikelihood();
 	}
 

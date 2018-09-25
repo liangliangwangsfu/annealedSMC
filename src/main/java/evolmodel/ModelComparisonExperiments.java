@@ -114,28 +114,28 @@ public class ModelComparisonExperiments implements Runnable
 	public boolean adaptiveTempDiff = false;
 	@Option
 	public int adaptiveType = 0;
-
 	@Option
 	public boolean useCESS=true;
-
 	@Option
 	public double alphaSMCSampler = 0.95;
-
 	@Option
 	public double essRatioThreshold = 0.7;
 	@Option public int nNumericalIntegration = 1000;
-
 	@Option public int nSitesPerIndex = 10;
-
 	@Option
 	public int nAnnealing = 5000;
 	@Option
 	public int nSubsampling = 5000;
+	@Option 
+	public double[] stationaryDistributionDirichletParameters=new double[]{100, 100, 100, 100};
+	@Option
+	public double[] subsRatesDirichletParameters=new double[]{100, 100, 100, 100};
+	@Option
+	public double gammaShape=2,  gammaScale=3;
+	
 	public  File data = null;
 	private File output = null;
-	private RootedTree goldrt;
 	private PrintWriter logZout = null;
-	private double marginalLogLike=0;
 
 	public static void main(String[] args)
 	{
@@ -718,9 +718,9 @@ public class ModelComparisonExperiments implements Runnable
 		{
 			LogInfo.logsForce("Generating data...");
 			LogInfo.forceSilent = false;
-			generator.stationaryDistribution = Dirichlet.sample(generator.rand, new double[] {100,100,100,100}); 
-			generator.subsRates = Dirichlet.sample(generator.rand, new double[] {100,100,100,100,100,100}); 
-			generator.alpha = GammaDistribution.nextGamma(2,3);
+			generator.stationaryDistribution = stationaryDistributionDirichletParameters; //  Dirichlet.sample(generator.rand, new double[] {100,100,100,100}); 
+			generator.subsRates = subsRatesDirichletParameters; // Dirichlet.sample(generator.rand, new double[] {100,100,100,100,100,100}); 
+			generator.alpha = GammaDistribution.nextGamma(gammaShape, gammaScale);//GammaDistribution.nextGamma(2,3);
 			generator.run();
 		}else{
 

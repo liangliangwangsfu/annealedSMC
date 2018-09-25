@@ -127,9 +127,9 @@ public class ModelComparisonExperiments implements Runnable
 	@Option
 	public int nSubsampling = 5000;
 	@Option 
-	public double[] stationaryDistributionDirichletParameters=new double[]{100, 100, 100, 100};
+	public double[] stationaryDistributionDirichletParameters=new double[]{100,100,100,100};
 	@Option
-	public double[] subsRatesDirichletParameters=new double[]{100, 100, 100, 100};
+	public double[] subsRatesDirichletParameters=new double[]{100,100,100,100,100,100};
 	@Option
 	public double gammaShape=2,  gammaScale=3;
 	
@@ -718,8 +718,8 @@ public class ModelComparisonExperiments implements Runnable
 		{
 			LogInfo.logsForce("Generating data...");
 			LogInfo.forceSilent = false;
-			generator.stationaryDistribution = stationaryDistributionDirichletParameters; //  Dirichlet.sample(generator.rand, new double[] {100,100,100,100}); 
-			generator.subsRates = subsRatesDirichletParameters; // Dirichlet.sample(generator.rand, new double[] {100,100,100,100,100,100}); 
+			generator.stationaryDistribution = Dirichlet.sample(generator.rand, stationaryDistributionDirichletParameters); //  Dirichlet.sample(generator.rand, new double[] {100,100,100,100}); 
+			generator.subsRates = Dirichlet.sample(generator.rand, subsRatesDirichletParameters); // Dirichlet.sample(generator.rand, new double[] {100,100,100,100,100,100}); 
 			generator.alpha = GammaDistribution.nextGamma(gammaShape, gammaScale);//GammaDistribution.nextGamma(2,3);
 			generator.run();
 		}else{

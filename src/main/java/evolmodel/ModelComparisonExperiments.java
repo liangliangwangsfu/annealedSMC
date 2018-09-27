@@ -197,7 +197,7 @@ public class ModelComparisonExperiments implements Runnable
 								treeNameCurrentRep = treeNameCurrentRep + ".Rep"+ j;
 								LogInfo.track("Repeat " + (j+1) + "/" + repPerDataPt);
 								LogInfo.end_track();
-								gtrGammaParameters.println(CSV.body(treeNameCurrentRep,generator.stationaryDistribution[0],generator.stationaryDistribution[1], generator.stationaryDistribution[3], generator.stationaryDistribution[3],
+								gtrGammaParameters.println(CSV.body(treeNameCurrentRep,generator.stationaryDistribution[0],generator.stationaryDistribution[1], generator.stationaryDistribution[2], generator.stationaryDistribution[3],
 										generator.subsRates[0],generator.subsRates[1],generator.subsRates[2],generator.subsRates[3],generator.subsRates[4],generator.subsRates[5],generator.alpha));
 								gtrGammaParameters.flush();
 

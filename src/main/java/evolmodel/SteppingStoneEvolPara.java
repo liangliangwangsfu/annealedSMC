@@ -165,6 +165,7 @@ public class SteppingStoneEvolPara implements Runnable{
 //			EvolutionParameterProposalDistribution evolParaProposal = nextEvolParaProposal(rand);  
 			Pair<EvolutionParameters, Double> evolProposalRe = evolParaProposal.propose(current.getEvolParameter(), rand);
 			EvolutionParameters proposedEvolPar = evolProposalRe.getFirst();    // proposed evolutionary parameters
+		//	System.out.println(proposedEvolPar.getParameters()[0]);
 			CTMC ctmc = evolModel.instantiateCTMC(proposedEvolPar, dataset.nSites());			
 			proposedUrootedTreeState = UnrootedTreeState.initFastState(result.getFirst(), dataset, ctmc, priorDensity);  // result.getFirst() gives the proposed tree and ctmc is updated with the newly proposed evolutionary parameters			
 			final double logProposalRatio = result.getSecond()+evolProposalRe.getSecond();		
@@ -281,7 +282,7 @@ public class SteppingStoneEvolPara implements Runnable{
 		System.out.println(logZ);
 
 		for(int t = 2; t < nChains; t++) {
-			proposedState = propagation(r, temperatureSchedule[t-1], nburn, nSamples, ctmc, priorDensity, initState);
+			proposedState = propagation(r, temperatureSchedule[t-1], nburn, nSamples, ctmc, priorDensity, initState);			
 			logZ = logZ + logNormalizer(proposedState.getSecond(), temperatureSchedule[t-1], temperatureSchedule[t], nSamples);
 			//			initTree = proposedState.getFirst();
 			//			initTreeState =  UnrootedTreeState.initFastState(initTree, data, ctmc, priorDensity);

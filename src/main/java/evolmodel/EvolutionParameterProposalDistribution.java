@@ -64,11 +64,15 @@ public interface EvolutionParameterProposalDistribution
 				this.rand=rand;			
 			}
 
-			public  Pair<Double,Double> propose(double currentTrans2tranv) {
+			public  Pair<Double,Double> propose(double currentTrans2tranv) {				
 				double lambda=2*Math.log(a);
+				double m=0, newTrans2tranv = -99999;
+				while(newTrans2tranv<0.1 || newTrans2tranv>10){
 				double rvUnif = Sampling.nextDouble(rand, 0, 1);
-				double m  = Math.exp(lambda*(rvUnif-0.5));		
-				final double newTrans2tranv = m * currentTrans2tranv;
+				m  = Math.exp(lambda*(rvUnif-0.5));
+				newTrans2tranv = m * currentTrans2tranv;
+				}				
+				
 				return Pair.makePair(newTrans2tranv, Math.log(m));						
 			}
 		}

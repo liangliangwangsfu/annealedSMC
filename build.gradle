@@ -1,10 +1,16 @@
+
 apply plugin: 'java'
-apply plugin: 'maven'
 apply plugin: 'eclipse'
-apply plugin: "org.xtext.xtend"
+apply plugin: 'org.xtext.xtend'
+apply plugin: 'application'
+
+
+
+
 
 buildscript {
   repositories {
+    mavenLocal()
     mavenCentral()
   }
 }
@@ -15,10 +21,11 @@ buildscript {
       url "https://plugins.gradle.org/m2/"
     }
   }
-  dependencies {
-    classpath "org.xtext:xtext-gradle-plugin:1.0.5"
+dependencies {
+    classpath "org.xtext:xtext-gradle-plugin:3.0.0"
   }
 }
+
 
 xtend {
   generator{
@@ -27,14 +34,7 @@ xtend {
 }
 
 
-uploadArchives {
-  repositories.mavenDeployer {
-    repository(url: "file:///${System.properties['user.home']}/artifacts/")
-    pom.version = "1.0.0"
-    pom.artifactId = "phylosmcsampler"
-    pom.groupId = "ca.sfu.stat"
-  }
-}
+
 
 eclipse { 
   classpath {
@@ -43,8 +43,9 @@ eclipse {
 }
 
 repositories {
+  mavenLocal()
   mavenCentral()
-  jcenter()
+
   maven {
     url "https://ubc-stat-ml.github.io/artifacts/"
   }
@@ -52,23 +53,24 @@ repositories {
     url "https://www.stat.ubc.ca/~bouchard/maven/"
   }
     maven {
-    url "http://people.stat.sfu.ca/~lwa68/maven/"
+    url "https://www.sfu.ca/~lwa68/maven/"
   }  
+  maven { url 'https://jitpack.io' }
 }
 
-dependencies {
-compile group: 'com.google.guava', name: 'guava', version: '19.0'
-  testCompile group: 'junit', name: 'junit', version: '4.12'
-  compile group: 'junit', name: 'junit', version: '4.12'
-  compile group: 'ca.ubc.stat', name: 'binc', version: '1.2.1'
-  compile group: 'ca.ubc.stat', name: 'briefj', version: '2.4.20'
-  compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.4'
-  compile 'com.google.code.gson:gson:2.7'
-  compile 'org.eclipse.xtend:org.eclipse.xtend.lib:2.9.2'  
-  compile group: 'ca.sfu.stat', name: 'sfu-legacy', version: '1.0.13' 
-  compile group: 'ca.ubc.stat', name: 'conifer', version: '1.3.6'
-  compile group: 'ca.ubc.stat', name: 'bayonet', version: '4.0.3' 
-  compile group: 'ca.ubc.stat', name: 'inits', version: '2.6.3'
+dependencies { 
+  implementation 'com.google.guava:guava:30.1.1-jre'
+  testImplementation 'org.junit.jupiter:junit-jupiter:5.7.2'
+  implementation 'ca.ubc.stat:binc:1.2.1'
+  implementation 'ca.ubc.stat:briefj:2.4.20'
+  implementation 'org.apache.commons:commons-lang3:3.4'
+  implementation 'com.google.code.gson:gson:2.7'
+  implementation 'org.eclipse.xtend:org.eclipse.xtend.lib:2.9.2'  
+  implementation 'ca.sfu.stat:sfu-legacy:1.0.14' 
+  implementation 'ca.ubc.stat:conifer:1.3.6'
+  implementation 'ca.ubc.stat:bayonet:4.0.3' 
+  implementation 'ca.ubc.stat:inits:2.6.3'
+  implementation 'com.github.User:Repo:Tag'
 }
 
 task sourcesJar(type: Jar, dependsOn: classes) {
@@ -106,7 +108,7 @@ if (JavaVersion.current().isJava8Compatible()) {
 // use 'gradle startScripts' to create script
 // use 'gradle distZip' to create deployable zip
 // use 'gradle installApp' to copy it somewhere
-apply plugin:'application'  
+  
 
 // Creates scripts for entry points
 // Subproject must apply application plugin to be able to call this method.
@@ -134,8 +136,4 @@ def createScript(project, mainClass, name) {
 // could lead to confusion
 startScripts.enabled = false
 run.enabled = false
-
-// Call this for each Main class you want to expose with an app script
-createScript(project, 'mains.AnnealedApproxFactory', 'annsmc')
-//createScript(project, 'phylosmcsampler.AnotherMain', 'another-main')
 
